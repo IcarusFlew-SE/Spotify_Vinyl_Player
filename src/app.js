@@ -53,18 +53,18 @@ async function handleTogglePlay() {
   }
 }
 
-function handlePlaybackError(err) {
+/*function handlePlaybackError(err) {
   const messages = {
     NO_ACTIVE_DEVICE: 'Open Spotify on a device first, then try again.',
     PREMIUM_REQUIRED: 'Playback control requires Spotify Premium.',
     UNAUTHORIZED: 'Session expired — please reconnect.',
   };
   alert(messages[err.message] || 'Playback action failed.');
-}
+}*/
 
 btnPlay.addEventListener('click', handleTogglePlay);
-btnNext.addEventListener('click', () => next().catch(handlePlaybackError));
-btnPrev.addEventListener('click', () => previous().catch(handlePlaybackError));
+btnNext.addEventListener('click', () => next());
+btnPrev.addEventListener('click', () => previous());
 
 // Timer controls
 btnTimerToggle.addEventListener('click', toggleTimer);

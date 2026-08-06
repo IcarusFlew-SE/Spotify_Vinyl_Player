@@ -1,7 +1,7 @@
 import { getValidToken } from './auth.js';
 import { state, setState } from './state.js';
 
-const POLL_MS = 5000;
+const POLL_MS = 50;
 let intervalId = null;
 let lastTrackId = null;
 

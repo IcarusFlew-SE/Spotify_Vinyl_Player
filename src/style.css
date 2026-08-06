@@ -219,3 +219,33 @@ button:active { transform: scale(0.95); }
   border-radius: 20px;
   font-size: 0.85rem;
 }
+
+/* Disabled affordance — currently no visual difference between active/inactive buttons */
+.btn-icon:disabled,
+.btn-play:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Hover/active feedback — currently missing entirely */
+.btn-icon:not(:disabled):hover,
+.btn-play:not(:disabled):hover {
+  transform: scale(1.08);
+  transition: transform 0.15s ease;
+}
+.btn-icon:not(:disabled):active,
+.btn-play:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+/* Timer state feedback */
+.timer-display.break-mode {
+  color: var(--accent-break, #7fd6a4); /* define this var alongside your existing palette */
+}
+
+/* Keyboard accessibility — no focus-visible styling exists currently */
+button:focus-visible {
+  outline: 2px solid var(--accent, #1db954);
+  outline-offset: 2px;
+}

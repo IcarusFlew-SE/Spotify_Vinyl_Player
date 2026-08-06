@@ -1,79 +1,92 @@
 import { redirectToSpotifyAuth, getAccessToken } from './auth.js';
+import { state, subscribe } from './state.js';
+import { toggleTimer, formatTime, requestNotificationPermission } from './timer.js';
+import { play, pause, next, previous } from './player.js';
+import { startSync } from './sync.js';
 
-// DOM Elements
+// DOM refs
 const vinyl = document.getElementById('vinyl');
 const tonearm = document.getElementById('tonearm');
 const btnPlay = document.getElementById('btn-play');
+const btnPrev = document.getElementById('btn-prev');
+const btnNext = document.getElementById('btn-next');
 const btnLogin = document.getElementById('btn-login');
+const btnTimerToggle = document.getElementById('btn-timer-toggle');
+const timerDisplay = document.getElementById('timer-display');
 const albumArt = document.getElementById('album-art');
 const ambientBg = document.getElementById('ambient-bg');
 
-let isPlaying = false;
+// Single render function — the only place that touches the DOM
+function render(s) {
+  vinyl.classList.toggle('playing', s.isPlaying);
+  tonearm.classList.toggle('engaged', s.isPlaying);
+  btnPlay.textContent = s.isPlaying ? '⏸' : '▶';
 
-// Toggles Vinyl Spin and Tonearm Drop
-function togglePlayback() {
-  isPlaying = !isPlaying;
+  btnPrev.disabled = !s.isConnected;
+  btnNext.disabled = !s.isConnected;
+  btnPlay.disabled = !s.isConnected;
 
-  if (isPlaying) {
-    vinyl.classList.add('playing');
-    tonearm.classList.add('engaged');
-    btnPlay.textContent = '⏸';
-  } else {
-    vinyl.classList.remove('playing');
-    tonearm.classList.remove('engaged');
-    btnPlay.textContent = '▶';
+  if (s.trackImage) {
+    albumArt.src = s.trackImage;
+    ambientBg.style.backgroundImage = `url('${s.trackImage}')`;
   }
+  document.getElementById('track-title').textContent = s.trackTitle || 'No Track Selected';
+  document.getElementById('track-artist').textContent = s.trackArtist || 'Connect to Spotify to start playing';
+
+  timerDisplay.textContent = formatTime(s.timerSecondsLeft);
+  timerDisplay.classList.toggle('break-mode', s.timerMode === 'break');
+  btnTimerToggle.textContent = s.timerRunning ? 'Pause Session' : 'Start Session';
+
+  btnLogin.textContent = s.isConnected ? 'Connected ✓' : 'Connect Spotify';
 }
 
-// Dynamically Update Album Art and Ambient Background Mood
-function updateTrackDisplay(imageUrl, title, artist) {
-  albumArt.src = imageUrl;
-  ambientBg.style.backgroundImage = `url('${imageUrl}')`;
-  document.getElementById('track-title').textContent = title;
-  document.getElementById('track-artist').textContent = artist;
-}
+subscribe(render);
+render(state); // initial paint
 
-// Handle Spotify Redirect Callback
-async function handleCallback() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-
-  if (code) {
-    const token = await getAccessToken(code);
-    // Clear URL parameters
-    window.history.replaceState({}, document.title, "/");
-    if (token) {
-      btnLogin.textContent = 'Connected ✓';
-      fetchCurrentlyPlaying(token);
-    }
-  }
-}
-
-// Fetch Currently Playing Track Metadata from Spotify
-async function fetchCurrentlyPlaying(token) {
+// Playback controls
+async function handleTogglePlay() {
   try {
-    const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (res.status === 200) {
-      const data = await res.json();
-      const track = data.item;
-      updateTrackDisplay(
-        track.album.images[0].url,
-        track.name,
-        track.artists.map(a => a.name).join(', ')
-      );
-      if (data.is_playing && !isPlaying) togglePlayback();
-    }
+    state.isPlaying ? await pause() : await play();
+    // No optimistic update — next sync poll confirms real state
   } catch (err) {
-    console.error('Failed to fetch Spotify track info:', err);
+    handlePlaybackError(err);
   }
 }
 
-// Event Listeners
-btnPlay.addEventListener('click', togglePlayback);
-btnLogin.addEventListener('click', redirectToSpotifyAuth);
+function handlePlaybackError(err) {
+  const messages = {
+    NO_ACTIVE_DEVICE: 'Open Spotify on a device first, then try again.',
+    PREMIUM_REQUIRED: 'Playback control requires Spotify Premium.',
+    UNAUTHORIZED: 'Session expired — please reconnect.',
+  };
+  alert(messages[err.message] || 'Playback action failed.');
+}
 
-// Initialize App
+btnPlay.addEventListener('click', handleTogglePlay);
+btnNext.addEventListener('click', () => next().catch(handlePlaybackError));
+btnPrev.addEventListener('click', () => previous().catch(handlePlaybackError));
+
+// Timer controls
+btnTimerToggle.addEventListener('click', toggleTimer);
+
+// Login — request notification permission during this real user gesture
+btnLogin.addEventListener('click', () => {
+  requestNotificationPermission();
+  redirectToSpotifyAuth();
+});
+
+// Spotify redirect callback
+async function handleCallback() {
+  const code = new URLSearchParams(window.location.search).get('code');
+  if (!code) return;
+
+  const token = await getAccessToken(code);
+  window.history.replaceState({}, document.title, '/');
+  if (token) {
+    state.isConnected = true; // direct set is fine pre-render; subscribe already registered
+    render(state);
+    startSync(); // begins polling currently-playing, drives all subsequent state updates
+  }
+}
+
 await handleCallback();

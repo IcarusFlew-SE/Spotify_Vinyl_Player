@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lo-Fi Vinyl Study Player</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+  <!-- Zero-Lag Dynamic Ambient Background -->
+  <div class="ambient-background" id="ambient-bg"></div>
+
+  <!-- Main Workspace -->
+  <main class="app-container">
+    
+    <!-- Turntable Deck -->
+    <section class="turntable">
+      <div class="platter">
+        <!-- Rotating Vinyl Record -->
+        <div class="vinyl" id="vinyl">
+          <div class="vinyl-grooves"></div>
+          <div class="album-label" id="album-label">
+            <img src="https://via.placeholder.com/150/181818/ffffff?text=Select+Track" id="album-art" alt="Album Cover">
+            <div class="center-spindle"></div>
+          </div>
+        </div>
+        
+        <!-- Interactive Tonearm -->
+        <div class="tonearm-assembly" id="tonearm">
+          <div class="tonearm-base"></div>
+          <div class="tonearm-arm"></div>
+          <div class="tonearm-cartridge"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Player Controls & Now Playing Info -->
+    <section class="control-panel">
+      <div class="track-info">
+        <h2 id="track-title">No Track Selected</h2>
+        <p id="track-artist">Connect to Spotify to start playing</p>
+      </div>
+
+      <div class="audio-controls">
+        <button id="btn-prev" class="btn-icon">⏮</button>
+        <button id="btn-play" class="btn-play">▶</button>
+        <button id="btn-next" class="btn-icon">⏭</button>
+      </div>
+
+      <!-- Student Study Timer Integration -->
+      <div class="focus-timer">
+        <span class="timer-label">Focus Mode</span>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <button id="btn-timer-toggle" class="btn-secondary">Start Session</button>
+      </div>
+
+      <button id="btn-login" class="btn-spotify">Connect Spotify</button>
+    </section>
+
+  </main>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 // Spotify API Configurations
-export const CLIENT_ID = 'a9e4b2d884fe464398931658a5c60eb0'; // Replace with your Dashboard Client ID
+export const CLIENT_ID = 'CLIENT_ID'; // Replace with your Dashboard Client ID
 export const REDIRECT_URI = 'http://127.0.0.1:5173/'; // Or your Vercel deployment URL
 export const SCOPES = [
   'user-read-currently-playing',

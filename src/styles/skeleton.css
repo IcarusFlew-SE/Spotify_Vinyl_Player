@@ -1,0 +1,64 @@
+/* Loading placeholders (DESIGN §8). Shape-matched to the real content so nothing shifts,
+   and only shown after 150 ms so fast loads never flicker. */
+@keyframes skeleton-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton,
+[aria-busy='true'] .skeleton-text,
+.art-frame.is-loading {
+  background:
+    linear-gradient(
+        90deg,
+        transparent 25%,
+        color-mix(in oklab, var(--color-text) 10%, transparent) 50%,
+        transparent 75%
+      )
+      0 0 / 200% 100%,
+    color-mix(in oklab, var(--color-text) 8%, transparent);
+  opacity: 0;
+  animation:
+    skeleton-in 0ms 150ms forwards,
+    shimmer 1.4s 150ms linear infinite;
+}
+
+/* Text placeholders keep the element's own line box — a bar where the words will be */
+[aria-busy='true'] .skeleton-text {
+  color: transparent;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+  min-width: 12ch;
+  user-select: none;
+}
+
+[aria-busy='true'] .track-artist.skeleton-text {
+  min-width: 8ch;
+}
+
+/* Artwork frames shimmer while the image downloads and decodes, then fade it in */
+.art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity var(--dur-base) var(--ease-standard);
+}
+
+.art-frame.is-loading .art-img {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  [aria-busy='true'] .skeleton-text,
+  .art-frame.is-loading {
+    animation: skeleton-in 0ms 150ms forwards;
+  }
+}

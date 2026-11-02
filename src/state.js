@@ -1,22 +1,61 @@
-const listeners = new Set();
+// Slice-based store: each slice notifies only its own subscribers, and only on real changes
+const listeners = new Map(); // slice name -> Set<fn>
+
+export const IDLE_PLAYBACK = Object.freeze({
+  status: 'idle', // 'idle' | 'loading' | 'ready'
+  isPlaying: false,
+  trackTitle: null,
+  trackArtist: null,
+  album: null,
+  trackUrl: null, // open.spotify.com link, for attribution / "open in Spotify"
+  artUrl: null, // ~300 px — sleeve and label
+  artThumbUrl: null, // ~64 px — colour extraction
+  progressMs: 0, // position at the last sync…
+  progressAt: 0, // …and when that was (Date.now()), so the bar can advance between polls
+  durationMs: 0,
+});
 
 export const state = {
-    isConnected: false,
-    isPlaying: false,
-    trackTitle: null,
-    trackArtist: null,
-    trackImage: null,
-    timerMode: 'focus',        // 'focus' | 'break'
-    timerSecondsLeft: 25 * 60,
-    timerRunning: false,
+  auth: { status: 'unknown' }, // 'unknown' (resolving stored session) | 'connected' | 'disconnected'
+  playback: { ...IDLE_PLAYBACK },
+  timer: {
+    mode: 'focus', // 'focus' | 'break'
+    secondsLeft: 25 * 60,
+    running: false,
+    focusMinutes: 25, // chosen on the timer sheet's sliders; remembered per browser
+    breakMinutes: 5,
+  },
+  theme: { vars: null, source: 'fallback' }, // set by features/mood
+  library: {
+    kind: 'playlists', // 'playlists' | 'albums' | 'liked'
+    status: 'idle', // 'idle' (not connected) | 'loading' | 'ready' | 'error' | 'needs-scope'
+    items: [], // { id, uri, kind, title, subtitle, meta, artUrl, thumbUrl }
+    selected: 0, // index of the record at the crate's centre
+  },
+  ui: { toast: null }, // { message, tone, id }
+};
+
+export const isConnected = (s = state) => s.auth.status === 'connected';
+
+export function setState(slice, patch) {
+  const current = state[slice];
+  const changed = Object.keys(patch).some((key) => !Object.is(current[key], patch[key]));
+  if (!changed) return;
+
+  state[slice] = { ...current, ...patch };
+  listeners.get(slice)?.forEach((fn) => fn(state[slice], state));
 }
 
-export function setState(patch) {
-    Object.assign(state, patch);
-    listeners.forEach(fn => fn(state));
+// Calls fn immediately (initial paint), then on every change to that slice
+export function subscribe(slice, fn) {
+  if (!listeners.has(slice)) listeners.set(slice, new Set());
+  listeners.get(slice).add(fn);
+  fn(state[slice], state);
+  return () => listeners.get(slice).delete(fn); // unsubscribe handle
 }
 
-export function subscribe(fn) {
-    listeners.add(fn);
-    return () => listeners.delete(fn); // unsubscribe handle
+// Show a toast from anywhere — the id makes a repeated message re-trigger
+let toastSeq = 0;
+export function notify(message, tone = 'info') {
+  setState('ui', { toast: { message, tone, id: ++toastSeq } });
 }

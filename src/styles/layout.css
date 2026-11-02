@@ -1,0 +1,60 @@
+/* Page layout — two even columns from 1024 px, each a header row + one card that fills the height.
+   Mobile: the same two sections, stacked. */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: min(1320px, 100% - 2 * var(--gutter));
+  margin-inline: auto;
+  padding-block: var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-7);
+  width: min(1320px, 100% - 2 * var(--gutter));
+  margin-inline: auto;
+  padding-block: var(--space-5) var(--space-7);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* Same header row in both columns: title on the left, the column's one control on the right */
+.column__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  min-height: 2.75rem;
+}
+
+.column > .card,
+.column > .crate__body {
+  flex: 1;
+}
+
+.crate {
+  height: max(80svh, 560px);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  /* Both columns share one height, so their cards line up top and bottom */
+  .column {
+    height: calc(100dvh - 8.25rem); /* viewport minus header, page padding and a bottom margin */
+    min-height: 600px;
+  }
+}

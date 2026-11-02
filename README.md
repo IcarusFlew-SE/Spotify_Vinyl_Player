@@ -1,4 +1,4 @@
-# Spotify Vinyl Player
+# Studify
 ---
 ### Dev Note:
 1. Dynamic records shown stacked, and animation when interacting playing, or shuffling

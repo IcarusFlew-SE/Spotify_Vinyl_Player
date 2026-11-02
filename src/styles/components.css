@@ -1,0 +1,436 @@
+/* ── Top bar ── */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.wordmark__mark {
+  width: 1.75em;
+  height: 1.75em;
+  color: var(--color-card);
+}
+
+.account {
+  position: relative;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.account__skeleton,
+.account__menu {
+  display: none;
+}
+
+.account__skeleton {
+  width: 10rem;
+  height: 2.5rem;
+  border-radius: var(--radius-pill);
+}
+
+[data-auth='unknown'] .account__skeleton,
+[data-auth='connected'] .account__menu {
+  display: block;
+}
+
+.chip,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.chip::-webkit-details-marker {
+  display: none;
+}
+
+.chip__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.account__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  z-index: 10;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-pop);
+}
+
+/* ── Timer pill (opens the timer sheet; shows the countdown while a session runs) ── */
+.pill {
+  --timer-state: var(--color-focus);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.pill[data-mode='break'] {
+  --timer-state: var(--color-break);
+}
+
+.pill svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--timer-state);
+}
+
+.pill:hover,
+.pill[aria-expanded='true'] {
+  background: var(--color-raised);
+}
+
+/* ── Cards: one solid surface, no glass, no shadow ── */
+.card {
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+}
+
+@media (max-width: 639px) {
+  .card {
+    padding: var(--space-5);
+  }
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition:
+    scale var(--dur-fast) var(--ease-standard),
+    background-color var(--dur-fast) var(--ease-standard);
+}
+
+.btn:not(:disabled):active {
+  scale: 0.97;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn[hidden] {
+  display: none;
+}
+
+.btn--spotify {
+  background: var(--color-spotify);
+  color: #000;
+}
+
+.btn--accent {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.btn--solid {
+  background: var(--color-text);
+  color: var(--color-card);
+}
+
+.btn--ghost {
+  color: var(--color-text);
+}
+
+.btn--ghost:hover {
+  background: var(--color-card);
+}
+
+.btn-icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem; /* ≥ 44 px target */
+  border-radius: 50%;
+  color: var(--color-text);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    scale var(--dur-fast) var(--ease-standard);
+}
+
+.btn-icon svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.btn-play {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  transition: scale var(--dur-fast) var(--ease-out-back);
+}
+
+.btn-play svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.btn-icon:not(:disabled):hover {
+  background: var(--color-raised);
+}
+
+.btn-play:not(:disabled):hover {
+  scale: 1.06;
+}
+
+.btn-icon:not(:disabled):active,
+.btn-play:not(:disabled):active {
+  scale: 0.94;
+}
+
+.btn-icon:disabled,
+.btn-play:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hint {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.hint:empty {
+  display: none;
+}
+
+/* ── Range slider (progress, timer lengths) — flat track, filled part in the accent ── */
+.range {
+  --fill: 0%; /* set from JS: how much of the track is filled */
+  width: 100%;
+  height: 1.5rem;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+.range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--color-accent) var(--fill),
+    var(--color-line) var(--fill)
+  ); /* a hard stop, not a colour gradient */
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--color-text);
+}
+
+.range::-moz-range-track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-line);
+}
+
+.range::-moz-range-progress {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.range::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-text);
+}
+
+.range:focus-visible {
+  outline: none;
+}
+
+.range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+/* ── Focus timer sheet: hidden at first, slides up over the bottom of the player card ── */
+.timer-sheet {
+  --timer-state: var(--color-focus);
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 5;
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border-top: 4px solid var(--timer-state);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--color-raised);
+  text-align: left;
+  transform: translateY(100%);
+  visibility: hidden;
+  transition:
+    transform var(--dur-slow) var(--ease-standard),
+    visibility 0s linear var(--dur-slow); /* stays paintable until the slide-out ends */
+}
+
+.timer-sheet.is-open {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform var(--dur-slow) var(--ease-standard),
+    visibility 0s;
+}
+
+.timer-sheet[data-mode='break'] {
+  --timer-state: var(--color-break);
+}
+
+.timer-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block: calc(-1 * var(--space-2));
+}
+
+/* Mode is shown by label + icon + colour — never colour alone */
+.timer-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--timer-state);
+}
+
+.timer-label svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.timer-display {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums; /* digits don't jitter while counting */
+}
+
+.sliders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3) var(--space-6);
+}
+
+.slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.slider output {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.slider .range {
+  grid-column: 1 / -1;
+}
+
+.timer-sheet .hint {
+  text-align: left;
+}
+
+.timer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Toast ── */
+.toast {
+  --toast-tone: var(--color-accent);
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  z-index: 20;
+  max-width: calc(100vw - 2 * var(--space-4));
+  padding: var(--space-3) var(--space-5);
+  border-left: 4px solid var(--toast-tone);
+  border-radius: var(--radius-md);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--text-sm);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, var(--space-4));
+  transition:
+    opacity var(--dur-base) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard);
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast[data-tone='error'] {
+  --toast-tone: var(--color-danger);
+}
+.toast[data-tone='warning'] {
+  --toast-tone: var(--color-warning);
+}
+.toast[data-tone='success'] {
+  --toast-tone: var(--color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-sheet,
+  .timer-sheet.is-open {
+    transition: none;
+  }
+}

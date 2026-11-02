@@ -1,0 +1,130 @@
+/* Design tokens — see docs/DESIGN.md.
+   Flat duotone: one background field + one solid card colour, both tinted from the current cover,
+   plus a single accent. No glass, no gradients in the colour system. */
+
+/* Registered so cover-driven colour changes glide instead of snapping */
+@property --color-bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1d1b1a;
+}
+@property --color-card {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #131211;
+}
+@property --color-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f0603a;
+}
+@property --color-accent-text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f4704d;
+}
+@property --color-on-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #131211;
+}
+
+:root {
+  /* ── Colour: surfaces (fallback = charcoal + vermilion, like a record-store sleeve) ── */
+  --color-bg: #1d1b1a;
+  --color-card: #131211;
+  --color-raised: color-mix(in oklab, var(--color-card), white 8%);
+  --color-line: color-mix(in oklab, var(--color-text) 14%, transparent);
+
+  /* ── Colour: text ── */
+  --color-text: #f5f1ea;
+  --color-text-muted: color-mix(in oklab, var(--color-text) 68%, var(--color-card));
+
+  /* ── Colour: accent (from the cover, contrast-checked in JS) ── */
+  --color-accent: #f0603a;
+  --color-accent-text: #f4704d;
+  --color-on-accent: #131211;
+  --color-focus-ring: var(--color-accent-text);
+
+  /* ── Colour: states — stable across covers ── */
+  --color-focus: #ff7a59;
+  --color-break: #7fd6a4;
+  --color-success: #7fd6a4;
+  --color-warning: #ffc857;
+  --color-danger: #ff6b6b;
+  --color-spotify: #1db954; /* Spotify's brand colour — only on the official connect button */
+
+  /* ── Spacing (4 px base) — the only values for margin / padding / gap ── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --gutter: clamp(var(--space-4), 3vw, var(--space-7));
+
+  /* ── Shape ── */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.45); /* only for floating layers: toast, menu */
+
+  /* ── Type: one variable family (Archivo, weight + width axes) ── */
+  --font-sans: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --stretch-condensed: 72%; /* display: the record-store poster look */
+  --stretch-normal: 100%;
+
+  /* rem-based fluid scale — grows with the viewport, still respects the user's font size and zoom */
+  --text-xs: 0.8125rem; /* 13px — labels, captions */
+  --text-sm: 0.9375rem; /* 15px — secondary text */
+  --text-md: 1.0625rem; /* 17px — body */
+  --text-lg: clamp(1.25rem, 1.1rem + 0.4vw, 1.5rem);
+  --text-xl: clamp(2rem, 1.4rem + 1.8vw, 3rem); /* track title */
+  --text-section: clamp(1.75rem, 1.3rem + 1.2vw, 2.5rem); /* column titles — same in both columns */
+  --text-2xl: clamp(2.75rem, 1.8rem + 3.2vw, 4.75rem); /* timer digits */
+
+  --leading-tight: 1;
+  --leading-snug: 1.2;
+  --leading-body: 1.55;
+  --tracking-label: 0.12em;
+  --tracking-display: 0.005em;
+
+  /* ── Motion ── */
+  --dur-fast: 120ms;
+  --dur-base: 240ms;
+  --dur-slow: 600ms;
+  --dur-theme: 900ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out-back: cubic-bezier(0.3, 0, 0, 1.3);
+
+  /* ── Component tokens ── */
+  --spine-h: 2.125rem;
+
+  /* Cover-driven colour changes glide rather than snap */
+  transition:
+    --color-bg var(--dur-theme) var(--ease-standard),
+    --color-card var(--dur-theme) var(--ease-standard),
+    --color-accent var(--dur-theme) var(--ease-standard),
+    --color-accent-text var(--dur-theme) var(--ease-standard),
+    --color-on-accent var(--dur-theme) var(--ease-standard);
+}
+
+/* Users who ask for more contrast get full-strength secondary text and lines */
+@media (prefers-contrast: more) {
+  :root {
+    --color-text-muted: var(--color-text);
+    --color-line: color-mix(in oklab, var(--color-text) 45%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    transition: none;
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-slow: 0ms;
+  }
+}

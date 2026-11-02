@@ -1,0 +1,265 @@
+/* Record crate — a shelf of records seen from eye level (docs/pinterest-design/favorite songs.jpg).
+   Pure CSS 3D: the list scrolls under a fixed perspective, so records above the centre line show
+   their underside and records below show their top — the browser does the projection, no JS per frame.
+   Each record is a slab: a spine facing you, with the cover as its top and bottom faces. */
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+}
+
+.tab {
+  min-height: 2.25rem;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tab[aria-selected='true'] {
+  background: var(--color-text);
+  color: var(--color-card);
+}
+
+/* ── Stack viewport ── */
+.crate__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  container-type: size; /* lets the list pad itself to exactly half its own height */
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+  overflow: hidden;
+}
+
+/* Centre marker — the "needle" that shows which record is selected */
+.crate__body::before,
+.crate__body::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 4px;
+  height: calc(var(--spine-h) + var(--space-3));
+  translate: 0 -50%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  pointer-events: none;
+}
+
+.crate__body::before {
+  left: var(--space-3);
+}
+
+.crate__body::after {
+  right: var(--space-3);
+}
+
+.stack {
+  --item-h: 5.5rem; /* distance between records */
+  --slab-w: min(100cqi - 4rem, 22rem);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  list-style: none;
+  padding-block: calc(50cqh - var(--item-h) / 2); /* first and last records can reach the centre */
+  perspective: 50rem;
+  perspective-origin: 50% 50%;
+  /* fade the far records out instead of hard-clipping them */
+  mask-image: linear-gradient(transparent, black 18%, black 82%, transparent);
+}
+
+.stack::-webkit-scrollbar {
+  display: none;
+}
+
+.slab-item {
+  position: relative; /* z-index is set per record from its distance to the centre */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--item-h);
+  scroll-snap-align: center;
+  transform-style: preserve-3d;
+}
+
+.slab {
+  position: relative;
+  width: var(--slab-w);
+  height: var(--spine-h);
+  transform-style: preserve-3d;
+  border-radius: 3px;
+}
+
+.slab__spine {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding-inline: var(--space-3);
+  border-radius: 3px;
+  background: var(--spine-bg, var(--color-raised));
+  color: var(--spine-fg, var(--color-text));
+  font-size: var(--text-sm);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  /* short, so the label is never low-contrast for long while its colours arrive */
+  transition:
+    background-color var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard);
+}
+
+.slab__title {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slab__sub {
+  flex-shrink: 1000; /* the title keeps priority when space runs out */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+/* Cover faces, hinged on the spine's edges and folded back into the screen */
+.slab__face {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--spine-bg, var(--color-raised));
+  backface-visibility: hidden;
+}
+
+.slab__face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slab__face--top {
+  bottom: 100%;
+  transform-origin: bottom;
+  transform: rotateX(90deg); /* visible from above → records below the centre */
+}
+
+.slab__face--bottom {
+  top: 100%;
+  transform-origin: top;
+  transform: rotateX(-90deg); /* visible from below → records above the centre */
+}
+
+.slab-item.is-centered .slab__spine {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.slab:focus-visible {
+  outline: none;
+}
+
+.slab:focus-visible .slab__spine {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+/* Loading placeholders: bare spines */
+.slab-item.is-skeleton .slab__spine {
+  background: var(--color-raised);
+}
+
+/* ── Messages (not connected, missing permission, empty, error) ── */
+.crate__message {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  text-align: center;
+  background: var(--color-card);
+  color: var(--color-text-muted);
+}
+
+.crate__message[hidden] {
+  display: none;
+}
+
+/* ── Selected record ── */
+.crate__footer[hidden] {
+  display: none;
+}
+
+.crate__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
+}
+
+.crate__thumb {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-raised);
+}
+
+.crate__selected {
+  flex: 1;
+  min-width: 0;
+}
+
+.crate__selected-title {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crate__selected-meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reduced motion: a plain flat list of spines, no 3D */
+@media (prefers-reduced-motion: reduce) {
+  .stack {
+    perspective: none;
+  }
+
+  .slab__face {
+    display: none;
+  }
+}

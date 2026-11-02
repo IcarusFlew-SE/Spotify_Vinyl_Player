@@ -1,65 +1,326 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lo-Fi Vinyl Study Player</title>
-  <link rel="stylesheet" href="/src/style.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Studify — a lo-fi vinyl player for studying with Spotify." />
+    <title>Studify — Lo-fi vinyl study player</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles/index.css" />
+  </head>
+  <body>
+    <!-- Icon sprite — referenced via <use href="#i-…"> -->
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24">
+        <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" />
+      </symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24">
+        <path d="M6 5h2.5v14H6zM19 5.5v13L9.5 12z" fill="currentColor" />
+      </symbol>
+      <symbol id="i-next" viewBox="0 0 24 24">
+        <path d="M15.5 5H18v14h-2.5zM5 5.5v13l9.5-6.5z" fill="currentColor" />
+      </symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24">
+        <path
+          d="M5 12a7 7 0 1 0 2.1-5M5 4v4h4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-skip" viewBox="0 0 24 24">
+        <path
+          d="M5 6l7 6-7 6M13 6l7 6-7 6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-timer" viewBox="0 0 24 24">
+        <path
+          d="M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 2M9.5 2h5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path
+          d="M6 6l12 12M18 6L6 18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24">
+        <path
+          d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-cup" viewBox="0 0 24 24">
+        <path
+          d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3c0 2 2 2 2 4M12 3c0 2 2 2 2 4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+      </symbol>
+    </svg>
 
-  <!-- Zero-Lag Dynamic Ambient Background -->
-  <div class="ambient-background" id="ambient-bg"></div>
+    <header class="topbar">
+      <h1 class="wordmark">
+        <svg class="wordmark__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="15" fill="currentColor" />
+          <circle cx="16" cy="16" r="5.5" fill="var(--color-accent)" />
+          <circle cx="16" cy="16" r="1.5" fill="currentColor" />
+        </svg>
+        Studify
+      </h1>
 
-  <!-- Main Workspace -->
-  <main class="app-container">
-    
-    <!-- Turntable Deck -->
-    <section class="turntable">
-      <div class="platter">
-        <!-- Rotating Vinyl Record -->
-        <div class="vinyl" id="vinyl">
-          <div class="vinyl-grooves"></div>
-          <div class="album-label" id="album-label">
-            <img src="https://via.placeholder.com/150/181818/ffffff?text=Select+Track" id="album-art" alt="Album Cover">
-            <div class="center-spindle"></div>
+      <div class="account">
+        <span class="account__skeleton skeleton" aria-hidden="true"></span>
+        <button id="btn-login" class="btn btn--spotify" type="button" hidden>Connect Spotify</button>
+        <details class="account__menu">
+          <summary class="chip"><span class="chip__dot"></span>Spotify connected</summary>
+          <div class="account__popover">
+            <button id="btn-disconnect" class="btn btn--ghost" type="button">Disconnect Spotify</button>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Player column: cover + record, track, progress, transport; the focus timer slides up from below -->
+      <section class="column" aria-labelledby="player-title">
+        <div class="column__head">
+          <h2 class="section-title" id="player-title">Now playing</h2>
+          <button
+            id="btn-timer-open"
+            class="pill"
+            type="button"
+            aria-expanded="false"
+            aria-controls="timer-sheet"
+            data-mode="focus"
+          >
+            <svg aria-hidden="true"><use href="#i-timer" /></svg>
+            <span id="timer-pill-text">Focus timer</span>
+          </button>
+        </div>
+
+        <article class="card player" aria-labelledby="track-title">
+          <div class="cover-stack">
+            <div class="record-slot" id="record-slot">
+              <div class="vinyl" id="vinyl">
+                <div class="vinyl-grooves"></div>
+                <div class="album-label art-frame" id="label-frame">
+                  <img
+                    id="album-art"
+                    class="art-img"
+                    src="/blank-label.svg"
+                    width="300"
+                    height="300"
+                    alt=""
+                  />
+                </div>
+                <div class="center-spindle"></div>
+              </div>
+            </div>
+            <a class="sleeve" id="sleeve" target="_blank" rel="noopener">
+              <span class="sleeve__art art-frame" id="sleeve-frame">
+                <img id="sleeve-art" class="art-img" width="300" height="300" alt="" />
+              </span>
+            </a>
+          </div>
+
+          <div class="player__meta">
+            <h3 id="track-title" class="track-title">No Track Selected</h3>
+            <p id="track-artist" class="track-artist">Connect to Spotify to start playing</p>
+          </div>
+
+          <div class="progress">
+            <span class="progress__time" id="time-elapsed">0:00</span>
+            <input
+              type="range"
+              id="seek"
+              class="range"
+              min="0"
+              max="1"
+              step="1000"
+              value="0"
+              aria-label="Seek"
+              disabled
+            />
+            <span class="progress__time" id="time-total">0:00</span>
+          </div>
+
+          <div class="transport" role="group" aria-label="Playback">
+            <button
+              id="btn-prev"
+              class="btn-icon"
+              type="button"
+              aria-label="Previous track"
+              aria-keyshortcuts="ArrowLeft"
+              title="Previous (←)"
+            >
+              <svg aria-hidden="true"><use href="#i-prev" /></svg>
+            </button>
+            <button
+              id="btn-play"
+              class="btn-play"
+              type="button"
+              aria-label="Play"
+              aria-keyshortcuts="Space"
+              title="Play / pause (Space)"
+            >
+              <svg aria-hidden="true"><use id="play-icon" href="#i-play" /></svg>
+            </button>
+            <button
+              id="btn-next"
+              class="btn-icon"
+              type="button"
+              aria-label="Next track"
+              aria-keyshortcuts="ArrowRight"
+              title="Next (→)"
+            >
+              <svg aria-hidden="true"><use href="#i-next" /></svg>
+            </button>
+          </div>
+          <p class="hint" id="transport-hint"></p>
+
+          <!-- Focus timer — hidden until opened from the header pill -->
+          <section class="timer-sheet" id="timer-sheet" data-mode="focus" aria-labelledby="timer-label" inert>
+            <div class="timer-sheet__head">
+              <p class="label timer-label" id="timer-label">
+                <svg aria-hidden="true"><use id="timer-icon" href="#i-pencil" /></svg>
+                <span id="timer-label-text">Focus</span>
+              </p>
+              <button id="btn-timer-close" class="btn-icon" type="button" aria-label="Close timer">
+                <svg aria-hidden="true"><use href="#i-close" /></svg>
+              </button>
+            </div>
+
+            <div class="timer-display" id="timer-display" role="timer" aria-live="off">25:00</div>
+
+            <div class="sliders">
+              <div class="slider">
+                <label for="focus-length">Focus</label>
+                <output id="focus-length-out" for="focus-length">25 min</output>
+                <input type="range" id="focus-length" class="range" min="5" max="90" step="5" value="25" />
+              </div>
+              <div class="slider">
+                <label for="break-length">Break</label>
+                <output id="break-length-out" for="break-length">5 min</output>
+                <input type="range" id="break-length" class="range" min="1" max="30" step="1" value="5" />
+              </div>
+            </div>
+            <p class="hint" id="timer-hint"></p>
+
+            <div class="timer-actions">
+              <button
+                id="btn-timer-toggle"
+                class="btn btn--accent"
+                type="button"
+                aria-keyshortcuts="T"
+                title="Start / pause (T)"
+              >
+                Start
+              </button>
+              <button
+                id="btn-timer-reset"
+                class="btn-icon"
+                type="button"
+                aria-label="Reset timer"
+                title="Reset"
+              >
+                <svg aria-hidden="true"><use href="#i-reset" /></svg>
+              </button>
+              <button
+                id="btn-timer-skip"
+                class="btn-icon"
+                type="button"
+                aria-label="Skip to break"
+                title="Skip"
+              >
+                <svg aria-hidden="true"><use href="#i-skip" /></svg>
+              </button>
+            </div>
+          </section>
+        </article>
+      </section>
+
+      <!-- Crate column: browse playlists, albums and liked songs as a shelf of records -->
+      <section class="column crate" aria-labelledby="crate-title">
+        <div class="column__head">
+          <h2 class="section-title" id="crate-title">Your records</h2>
+          <div class="tabs" role="tablist" aria-label="Library">
+            <button
+              class="tab"
+              role="tab"
+              id="tab-playlists"
+              data-kind="playlists"
+              aria-controls="crate-panel"
+            >
+              Playlists
+            </button>
+            <button class="tab" role="tab" id="tab-albums" data-kind="albums" aria-controls="crate-panel">
+              Albums
+            </button>
+            <button class="tab" role="tab" id="tab-liked" data-kind="liked" aria-controls="crate-panel">
+              Liked
+            </button>
           </div>
         </div>
-        
-        <!-- Interactive Tonearm -->
-        <div class="tonearm-assembly" id="tonearm">
-          <div class="tonearm-base"></div>
-          <div class="tonearm-arm"></div>
-          <div class="tonearm-cartridge"></div>
+
+        <div class="crate__body" role="tabpanel" id="crate-panel" aria-labelledby="tab-playlists">
+          <div class="crate__message" id="crate-message" hidden>
+            <p id="crate-message-text"></p>
+            <button id="crate-message-action" class="btn btn--solid" type="button" hidden></button>
+          </div>
+          <ol class="stack" id="stack" aria-label="Records — use ↑ and ↓ to browse"></ol>
         </div>
-      </div>
-    </section>
 
-    <!-- Player Controls & Now Playing Info -->
-    <section class="control-panel">
-      <div class="track-info">
-        <h2 id="track-title">No Track Selected</h2>
-        <p id="track-artist">Connect to Spotify to start playing</p>
-      </div>
+        <div class="crate__footer" id="crate-footer" hidden>
+          <span class="crate__thumb art-frame" id="crate-thumb-frame">
+            <img id="crate-thumb" class="art-img" width="64" height="64" alt="" />
+          </span>
+          <div class="crate__selected">
+            <p class="crate__selected-title" id="crate-selected-title"></p>
+            <p class="crate__selected-meta" id="crate-selected-meta"></p>
+          </div>
+          <button id="btn-crate-play" class="btn btn--accent" type="button" disabled>Play</button>
+        </div>
+      </section>
+    </main>
 
-      <div class="audio-controls">
-        <button id="btn-prev" class="btn-icon">⏮</button>
-        <button id="btn-play" class="btn-play">▶</button>
-        <button id="btn-next" class="btn-icon">⏭</button>
-      </div>
+    <template id="slab-template">
+      <li class="slab-item">
+        <button class="slab" type="button">
+          <span class="slab__face slab__face--top"><img alt="" width="300" height="300" /></span>
+          <span class="slab__spine"><b class="slab__title"></b><span class="slab__sub"></span></span>
+          <span class="slab__face slab__face--bottom"><img alt="" width="300" height="300" /></span>
+        </button>
+      </li>
+    </template>
 
-      <!-- Student Study Timer Integration -->
-      <div class="focus-timer">
-        <span class="timer-label">Focus Mode</span>
-        <div class="timer-display" id="timer-display">25:00</div>
-        <button id="btn-timer-toggle" class="btn-secondary">Start Session</button>
-      </div>
+    <!-- Playback status messages -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <!-- Screen-reader announcements (track and timer changes) -->
+    <div class="sr-only" id="announcer" aria-live="polite"></div>
 
-      <button id="btn-login" class="btn-spotify">Connect Spotify</button>
-    </section>
-
-  </main>
-
-  <script type="module" src="/src/app.js"></script>
-</body>
+    <script type="module" src="/src/app.js"></script>
+  </body>
 </html>

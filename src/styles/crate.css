@@ -27,6 +27,16 @@
   color: var(--color-text);
 }
 
+/* Second-level tabs (Playlists · Albums · Liked) inside the Records panel */
+.tabs--sub {
+  align-self: flex-start;
+}
+
+.tabs--sub .tab {
+  min-height: 2rem;
+  padding: 0 var(--space-4);
+}
+
 .tab[aria-selected='true'] {
   background: var(--color-text);
   color: var(--color-card);

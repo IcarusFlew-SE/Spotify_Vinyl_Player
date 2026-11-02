@@ -61,6 +61,45 @@
           stroke-linecap="round"
         />
       </symbol>
+      <symbol id="i-back" viewBox="0 0 24 24">
+        <path
+          d="M15 5l-7 7 7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24">
+        <path
+          d="M9 5l7 7-7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-speaker" viewBox="0 0 24 24">
+        <path
+          d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-bars" viewBox="0 0 24 24">
+        <path
+          d="M5 20V12M10 20V6M15 20v-9M20 20V9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        />
+      </symbol>
       <symbol id="i-pencil" viewBox="0 0 24 24">
         <path
           d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"
@@ -200,6 +239,10 @@
             </button>
           </div>
           <p class="hint" id="transport-hint"></p>
+          <button id="btn-device" class="device" type="button" hidden>
+            <svg aria-hidden="true"><use href="#i-speaker" /></svg>
+            <span id="device-text">Play here</span>
+          </button>
 
           <!-- Focus timer — hidden until opened from the header pill -->
           <section class="timer-sheet" id="timer-sheet" data-mode="focus" aria-labelledby="timer-label" inert>
@@ -262,46 +305,136 @@
         </article>
       </section>
 
-      <!-- Crate column: browse playlists, albums and liked songs as a shelf of records -->
-      <section class="column crate" aria-labelledby="crate-title">
+      <!-- Side panel: Records (crate) · Tracks (what's playing) · Lyrics -->
+      <section class="column side" aria-labelledby="side-title">
         <div class="column__head">
-          <h2 class="section-title" id="crate-title">Your records</h2>
-          <div class="tabs" role="tablist" aria-label="Library">
+          <h2 class="section-title" id="side-title">Your records</h2>
+          <div class="tabs" role="tablist" aria-label="Side panel">
             <button
               class="tab"
               role="tab"
-              id="tab-playlists"
-              data-kind="playlists"
-              aria-controls="crate-panel"
+              id="ptab-records"
+              data-panel="records"
+              aria-controls="panel-records"
             >
-              Playlists
+              Records
             </button>
-            <button class="tab" role="tab" id="tab-albums" data-kind="albums" aria-controls="crate-panel">
-              Albums
+            <button class="tab" role="tab" id="ptab-tracks" data-panel="tracks" aria-controls="panel-tracks">
+              Tracks
             </button>
-            <button class="tab" role="tab" id="tab-liked" data-kind="liked" aria-controls="crate-panel">
-              Liked
+            <button class="tab" role="tab" id="ptab-lyrics" data-panel="lyrics" aria-controls="panel-lyrics">
+              Lyrics
             </button>
           </div>
         </div>
 
-        <div class="crate__body" role="tabpanel" id="crate-panel" aria-labelledby="tab-playlists">
-          <div class="crate__message" id="crate-message" hidden>
-            <p id="crate-message-text"></p>
-            <button id="crate-message-action" class="btn btn--solid" type="button" hidden></button>
-          </div>
-          <ol class="stack" id="stack" aria-label="Records — use ↑ and ↓ to browse"></ol>
-        </div>
+        <div class="side__panels">
+          <!-- Records -->
+          <div class="panel panel--records" role="tabpanel" id="panel-records" aria-labelledby="ptab-records">
+            <div class="tabs tabs--sub" role="tablist" aria-label="Library">
+              <button
+                class="tab"
+                role="tab"
+                id="tab-playlists"
+                data-kind="playlists"
+                aria-controls="crate-panel"
+              >
+                Playlists
+              </button>
+              <button class="tab" role="tab" id="tab-albums" data-kind="albums" aria-controls="crate-panel">
+                Albums
+              </button>
+              <button class="tab" role="tab" id="tab-liked" data-kind="liked" aria-controls="crate-panel">
+                Liked
+              </button>
+            </div>
 
-        <div class="crate__footer" id="crate-footer" hidden>
-          <span class="crate__thumb art-frame" id="crate-thumb-frame">
-            <img id="crate-thumb" class="art-img" width="64" height="64" alt="" />
-          </span>
-          <div class="crate__selected">
-            <p class="crate__selected-title" id="crate-selected-title"></p>
-            <p class="crate__selected-meta" id="crate-selected-meta"></p>
+            <div class="crate__body" role="tabpanel" id="crate-panel" aria-labelledby="tab-playlists">
+              <div class="crate__message" id="crate-message" hidden>
+                <p id="crate-message-text"></p>
+                <button id="crate-message-action" class="btn btn--solid" type="button" hidden></button>
+              </div>
+              <ol class="stack" id="stack" aria-label="Records — use ↑ and ↓ to browse"></ol>
+
+              <!-- "Tracks ›": the selected record's songs slide over the shelf -->
+              <section class="drawer" id="preview-drawer" aria-labelledby="preview-title" inert>
+                <div class="list-head">
+                  <button id="btn-drawer-close" class="btn-icon" type="button" aria-label="Back to records">
+                    <svg aria-hidden="true"><use href="#i-back" /></svg>
+                  </button>
+                  <div class="list-head__text">
+                    <p class="list-head__title" id="preview-title"></p>
+                    <p class="list-head__meta" id="preview-meta"></p>
+                  </div>
+                </div>
+                <div class="tracklist" id="preview-list"></div>
+              </section>
+            </div>
+
+            <div class="crate__footer" id="crate-footer" hidden>
+              <span class="crate__thumb art-frame" id="crate-thumb-frame">
+                <img id="crate-thumb" class="art-img" width="64" height="64" alt="" />
+              </span>
+              <div class="crate__selected">
+                <p class="crate__selected-title" id="crate-selected-title"></p>
+                <p class="crate__selected-meta" id="crate-selected-meta"></p>
+              </div>
+              <button
+                id="btn-crate-tracks"
+                class="btn btn--ghost"
+                type="button"
+                aria-expanded="false"
+                aria-controls="preview-drawer"
+              >
+                Tracks <svg aria-hidden="true" class="btn__chevron"><use href="#i-chevron" /></svg>
+              </button>
+              <button id="btn-crate-play" class="btn btn--accent" type="button" disabled>Play</button>
+            </div>
           </div>
-          <button id="btn-crate-play" class="btn btn--accent" type="button" disabled>Play</button>
+
+          <!-- Tracks: the playlist / album that's playing now -->
+          <div
+            class="panel card panel--list"
+            role="tabpanel"
+            id="panel-tracks"
+            aria-labelledby="ptab-tracks"
+            hidden
+          >
+            <div class="list-head">
+              <span class="list-head__thumb art-frame" id="context-thumb-frame">
+                <img id="context-thumb" class="art-img" width="64" height="64" alt="" />
+              </span>
+              <div class="list-head__text">
+                <p class="list-head__title" id="context-title"></p>
+                <p class="list-head__meta" id="context-meta"></p>
+              </div>
+            </div>
+            <div class="tracklist" id="context-list"></div>
+          </div>
+
+          <!-- Lyrics: synced to the song -->
+          <div
+            class="panel card panel--lyrics"
+            role="tabpanel"
+            id="panel-lyrics"
+            aria-labelledby="ptab-lyrics"
+            hidden
+          >
+            <div class="lyrics" id="lyrics-scroller" tabindex="0" aria-label="Lyrics">
+              <ol class="lyrics__lines" id="lyrics-lines"></ol>
+              <p class="lyrics__message" id="lyrics-message" hidden></p>
+            </div>
+            <button id="lyrics-resume" class="btn btn--solid lyrics__resume" type="button" hidden>
+              Back to current line
+            </button>
+            <div class="lyrics__footer">
+              <span id="lyrics-source"></span>
+              <label class="switch">
+                <input type="checkbox" id="auto-lyrics" role="switch" />
+                <span>Show lyrics when I play</span>
+              </label>
+            </div>
+          </div>
         </div>
       </section>
     </main>

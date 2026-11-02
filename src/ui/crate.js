@@ -1,6 +1,7 @@
-import { state, setState, subscribe } from '../state.js';
+import { state, setState, subscribe, canControl } from '../state.js';
 import { spineColorsForArtwork } from '../features/mood/index.js';
 import { setArtwork } from './artwork.js';
+import { createTrackList } from './tracklist.js';
 
 const SKELETON_COUNT = 9;
 const KIND_LABEL = { playlist: 'Playlist', album: 'Album', track: 'Song' };
@@ -12,10 +13,20 @@ const EMPTY_TEXT = {
 const KEY_STEPS = { ArrowDown: 1, ArrowUp: -1, PageDown: 5, PageUp: -5 };
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-// Record crate: library tabs, the 3D shelf of records, and the selected-record bar.
+// Record crate: library tabs, the 3D shelf of records, the selected-record bar, and the
+// "Tracks ›" slide-out that previews the selected record's songs.
 // The 3D projection is pure CSS (styles/crate.css); this module only tracks which record is centred.
-export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
-  const tablist = document.querySelector('.tabs');
+// Free accounts can't be controlled by apps, so Play becomes "Open in Spotify".
+export function mountCrate({
+  onSelectKind,
+  onPlay,
+  onReconnect,
+  onRetry,
+  onOpenTracks,
+  onPlayTrack,
+  onMoreTracks,
+}) {
+  const tablist = document.querySelector('#panel-records .tabs--sub');
   const tabs = [...tablist.querySelectorAll('.tab')];
   const panel = document.getElementById('crate-panel');
   const stack = document.getElementById('stack');
@@ -28,6 +39,19 @@ export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
   const selectedTitle = document.getElementById('crate-selected-title');
   const selectedMeta = document.getElementById('crate-selected-meta');
   const btnPlay = document.getElementById('btn-crate-play');
+  const btnTracks = document.getElementById('btn-crate-tracks');
+  const drawer = document.getElementById('preview-drawer');
+  const btnDrawerClose = document.getElementById('btn-drawer-close');
+  const previewTitle = document.getElementById('preview-title');
+  const previewMeta = document.getElementById('preview-meta');
+  const preview = createTrackList(document.getElementById('preview-list'), {
+    onPlay: (track) => {
+      if (canControl()) onPlayTrack(state.preview.record, track, state.preview.items);
+      else if (track.url) window.open(track.url, '_blank', 'noopener');
+    },
+    onMore: onMoreTracks,
+    idleText: '',
+  });
   const template = document.getElementById('slab-template').content.firstElementChild;
 
   let records = null; // the items currently rendered (null while showing skeletons or nothing)
@@ -125,6 +149,7 @@ export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
     const i = Math.max(0, Math.min(records.length - 1, index));
     if (i === center) return;
     center = i;
+    if (state.panel.drawerOpen) setState('panel', { drawerOpen: false }); // it was showing another record
     slabs.forEach((li, j) => {
       li.classList.toggle('is-centered', j === i);
       // Records nearer the centre paint on top, so spines overlap covers the way real records would
@@ -147,6 +172,10 @@ export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
     const { items, selected } = state.library;
     const record = items[selected];
     if (!record) return;
+    if (!canControl()) {
+      if (record.url) window.open(record.url, '_blank', 'noopener'); // free account: play it in Spotify
+      return;
+    }
     // A small lift on the chosen record — the only JS animation, and skipped for reduced motion
     if (!reducedMotion.matches) {
       slabs[selected]?.firstElementChild.animate(
@@ -165,17 +194,58 @@ export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
     messageHandler = action?.run ?? null;
   }
 
-  function renderFooter(lib, connected) {
+  function renderFooter(lib, s) {
     const record = lib.status === 'ready' ? lib.items[lib.selected] : null;
+    const control = canControl(s);
     footer.hidden = !record; // nothing selected → no bar, rather than an empty one
     selectedTitle.textContent = record?.title ?? '';
     selectedMeta.textContent = record
       ? [KIND_LABEL[record.kind], record.subtitle, record.meta].filter(Boolean).join(' · ')
       : '';
     setArtwork(thumbFrame, thumbImg, record?.artUrl);
-    btnPlay.disabled = !record || !connected;
-    btnPlay.setAttribute('aria-label', record ? `Play ${record.title}` : 'Play');
+    btnPlay.textContent = control ? 'Play' : 'Open in Spotify';
+    btnPlay.disabled = !record || (!control && !record.url);
+    btnPlay.setAttribute(
+      'aria-label',
+      record ? `${control ? 'Play' : 'Open in Spotify:'} ${record.title}` : 'Play',
+    );
+    // Single songs (Liked) have no track list to preview
+    btnTracks.hidden = !record || record.kind === 'track';
+    btnTracks.setAttribute('aria-label', record ? `Tracks in ${record.title}` : 'Tracks');
   }
+
+  // ── "Tracks ›" slide-out ──
+  function setDrawer(open) {
+    if (drawer.classList.contains('is-open') === open) return;
+    const focusWasInside = drawer.contains(document.activeElement);
+    drawer.classList.toggle('is-open', open);
+    drawer.inert = !open; // out of the tab order and hidden from screen readers while closed
+    btnTracks.setAttribute('aria-expanded', String(open));
+    if (open) btnDrawerClose.focus({ preventScroll: true });
+    else if (focusWasInside) btnTracks.focus({ preventScroll: true });
+  }
+
+  btnTracks.addEventListener('click', () => {
+    const record = state.library.items[state.library.selected];
+    if (!record) return;
+    if (state.panel.drawerOpen) return setState('panel', { drawerOpen: false });
+    onOpenTracks(record);
+    setState('panel', { drawerOpen: true });
+  });
+  btnDrawerClose.addEventListener('click', () => setState('panel', { drawerOpen: false }));
+  drawer.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setState('panel', { drawerOpen: false });
+  });
+
+  subscribe('panel', (p) => setDrawer(p.drawerOpen));
+  subscribe('preview', (p) => {
+    previewTitle.textContent = p.record?.title ?? '';
+    previewMeta.textContent = p.record
+      ? [KIND_LABEL[p.record.kind], p.record.subtitle].filter(Boolean).join(' · ')
+      : '';
+    preview.render(p, state.playback.trackId);
+  });
+  subscribe('playback', (p) => preview.markCurrent(p.trackId));
 
   subscribe('library', (lib, s) => {
     for (const tab of tabs) {
@@ -206,9 +276,9 @@ export function mountCrate({ onSelectKind, onPlay, onReconnect, onRetry }) {
     } else if (lib.status === 'ready' && !lib.items.length) showMessage(EMPTY_TEXT[lib.kind]);
     else showMessage(null);
 
-    renderFooter(lib, s.auth.status === 'connected');
+    renderFooter(lib, s);
   });
-  subscribe('auth', (auth, s) => renderFooter(s.library, auth.status === 'connected'));
+  subscribe('auth', (_, s) => renderFooter(s.library, s));
 
   // Scrolling: work out the centred record at most once per frame (one scrollTop read, no layout)
   stack.addEventListener(

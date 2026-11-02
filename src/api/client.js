@@ -23,7 +23,9 @@ export async function spotifyFetch(path, { method = 'GET', body, query } = {}) {
     throw new SpotifyError('RATE_LIMITED', { status: 429, retryAfter: Math.ceil(waitMs / 1000) });
   }
 
-  const url = query ? `${BASE}${path}?${new URLSearchParams(query)}` : `${BASE}${path}`;
+  // Paged responses hand back an absolute `next` URL — accept those as-is (Spotify API only)
+  const base = path.startsWith(BASE) ? path : `${BASE}${path}`;
+  const url = query ? `${base}?${new URLSearchParams(query)}` : base;
 
   let res = await send(url, method, body, false);
   // Token looked valid but was rejected (revoked, clock skew) — refresh once and retry
@@ -80,19 +82,27 @@ async function toError(res, path) {
 
   // Player endpoints explain themselves via error.reason — trust that over the bare status
   let reason = null;
+  let message = '';
   try {
-    reason = (await res.json())?.error?.reason ?? null;
+    const error = (await res.json())?.error;
+    reason = error?.reason ?? null;
+    message = typeof error?.message === 'string' ? error.message : '';
   } catch {
     // non-JSON error body
   }
-  return new SpotifyError(codeFor(res.status, reason, path), { status: res.status });
+  return new SpotifyError(codeFor(res.status, reason, path, message), { status: res.status });
 }
 
-function codeFor(status, reason, path) {
+// Development-mode apps refuse every call for accounts not added under User Management:
+// "Check settings on developer.spotify.com/dashboard, the user may not be registered."
+const NOT_REGISTERED = /not be registered|not registered|not approved/i;
+
+function codeFor(status, reason, path, message) {
   if (reason === 'PREMIUM_REQUIRED' || reason === 'NO_ACTIVE_DEVICE') return reason;
+  if (status === 403 && NOT_REGISTERED.test(message)) return 'USER_NOT_REGISTERED';
   if (status === 401) return 'UNAUTHORIZED';
   if (status === 403) return 'RESTRICTED';
-  if (status === 404) return path.startsWith('/me/player') ? 'NO_ACTIVE_DEVICE' : 'NOT_FOUND';
+  if (status === 404) return path.includes('/me/player') ? 'NO_ACTIVE_DEVICE' : 'NOT_FOUND';
   if (status >= 500) return 'SPOTIFY_UNAVAILABLE';
   return 'REQUEST_FAILED';
 }

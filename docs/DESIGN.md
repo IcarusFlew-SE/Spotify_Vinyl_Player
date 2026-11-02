@@ -1,9 +1,26 @@
 # Design — Studify
 
-Living document for UI/UX context, discussion, clarifications and further analysis.
-Related: [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) (roadmap) · [`CHANGELOG.md`](./CHANGELOG.md) (what changed and why).
+**For:** designers and developers. **New words?** See the [glossary](./README.md#words-youll-see-plain-english-glossary).
+Related: [Plan](./IMPLEMENTATION_PLAN.md) (roadmap) · [Changelog](./CHANGELOG.md) (what changed and why).
 
-**Status:** v0.3 (2026-11-02) — **Revision 2 "Studify" (§0) supersedes the visual direction of §4–§7 and §9.** Sections marked *superseded* are kept for history; §0 is the current design. §3 (audit), §8 and §10–§13 still apply.
+## Studify's look in one minute
+
+- **Flat colour, in two tones.** The background is one solid colour taken from the album cover, and the cards are a darker shade of it. There's no glass effect, no blur, no film-grain noise, and almost no gradients.
+- **One font, Archivo.** Big headings and song titles are bold, narrow and in capitals, like a record-store sign. Everything else is plain and easy to read.
+- **The music is the picture.** The album cover and the spinning record are the main images. Decorations that weren't about the music were removed.
+- **Two even columns** on a computer: the player on the left, and **Records · Tracks · Lyrics** on the right. On a phone they stack into one column.
+- **Calm motion, with meaning.** The record spins up and coasts down like a real turntable. The shelf folds away when the lyrics open, and panels slide in. Everything stops moving if your device asks for reduced motion.
+- **Readable for everyone.** Text contrast is always checked, colour is never the only signal, everything works with a keyboard, and text grows with your browser's zoom.
+- **Light and fast.** No animation libraries, one font file, and nothing runs while nothing changes.
+
+## How this document is organised
+
+| Part | Sections | Status |
+|---|---|---|
+| **Current design** | **§0**: Revision 2 "Studify": references (§0.1), what changed (§0.2), record shelf (§0.4), fonts (§0.5), motion (§0.6), performance (§0.7), risks (§0.8), even layout and timer (§0.10), listening view (§0.11), not yet verified (§0.9) | ✅ What's built now. Read this |
+| Background | §1 purpose · §2 audience and principles · §3 audit of the original UI | Still useful context |
+| Still applies | §8 loading states · §10 accessibility · §11 Spotify rules · §12 risks · §13 engineering notes | ✅ In force |
+| History | §4–§7 and §9 (the earlier "v0.2" direction), §14–§17 (Phase 1.5 work, questions and decisions) | Kept for the record. Sections marked *superseded* no longer apply |
 
 ---
 
@@ -134,6 +151,13 @@ Considered Motion (`motion` mini `animate`, ~2.5 KB) and GSAP (~25 KB+). **Not a
 - Accessibility: pill has `aria-expanded` / `aria-controls`; the closed sheet is `inert` (not focusable, hidden from screen readers); opening moves focus to Start; Esc or ✕ closes and returns focus to the pill. Reduced motion: no slide.
 
 **Interpretation note:** "selective slider, hidden at first" was read as *a hidden panel that slides in, holding sliders to select the session length*. If you meant something else (e.g. a duration picker only, or the timer as a horizontal carousel of presets), that's a small change.
+
+### 0.11 Listening view (Phase 1.8, 2026-11-02)
+- **Right column = side panel** with the same header pattern as the player: title (follows the tab) + **Records · Tracks · Lyrics** tabs. Panels share one grid cell, so switching cross-animates without moving the layout.
+- **Motion language:** Records *folds up* (scaleY + fade, 220 ms, accelerating) when leaving and *unfolds* when returning; Tracks / Lyrics *rise* (translateY 2rem + fade, 360 ms, decelerating, starting 140 ms after the fold). Drawers (timer sheet, **Tracks ›**) slide on the same `--dur-slow` / `--ease-standard`. All instant under reduced motion.
+- **Track list** is one component in two places (slide-out preview and Tracks tab): same row (number or equaliser icon · title / artist · duration), same keyboard model as the crate (roving tabindex); unplayable rows greyed via `aria-disabled` so they stay reachable.
+- **Lyrics waterfall:** one type style (title role, condensed 800) at one size for every line — state is colour only (faint → dim → full), so nothing reflows mid-song. Reading line at 30 % of the panel; edges masked rather than clipped.
+- **Free accounts (follow mode):** controls shown but disabled with a one-line explanation; actions that would fail become **Open in Spotify**.
 
 ### 0.9 Not yet verified
 Real library data, playback and seeking from the app (needs your login, Premium and an active device); Safari / Firefox rendering of the 3D shelf; Lighthouse / axe; a screen-reader pass of the crate.

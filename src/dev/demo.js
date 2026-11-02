@@ -5,8 +5,12 @@
 //   &crate=loading | empty | error | needs-scope   crate states (default: a full crate)
 //   &still=1    skip the theme colour transition (for screenshots)
 //   &timer=open open the focus timer sheet
-import { setState, notify, IDLE_PLAYBACK } from '../state.js';
+//   &panel=tracks | lyrics   open that side-panel tab      &drawer=1  open the crate's "Tracks ›" slide-out
+//   &plan=free  a free account (follow mode)
+//   &press=play click the crate's Play button after load (checks the auto-switch to lyrics)
+import { state, setState, notify, IDLE_PLAYBACK } from '../state.js';
 import { startTimer } from '../features/timer/timer.js';
+import { loadTracks } from '../features/tracks/index.js';
 
 const FIXTURES = {
   golden: {
@@ -172,6 +176,7 @@ function shelf(kind) {
       meta: kind === 'liked' ? entry[0] : `${12 + i} tracks`,
       artUrl: art,
       thumbUrl: art,
+      url: 'https://open.spotify.com/',
     };
   });
 }
@@ -184,26 +189,138 @@ export function loadDemoLibrary(kind) {
   setState('library', { kind, status: 'ready', items, selected: Math.min(3, items.length - 1) });
 }
 
-export function seekDemo(ms) {
-  setState('playback', { progressMs: ms, progressAt: Date.now() });
+// ── Track lists and lyrics ──
+const WORDS = [
+  'Late',
+  'Paper',
+  'Quiet',
+  'Neon',
+  'Window',
+  'Static',
+  'Chalk',
+  'Margins',
+  'Coffee',
+  'Index',
+  'Rain',
+  'Echo',
+];
+const NOUNS = [
+  'Notes',
+  'Hours',
+  'Lights',
+  'Pages',
+  'Drift',
+  'Loop',
+  'Desk',
+  'Avenue',
+  'Signal',
+  'Room',
+  'Weather',
+  'Tape',
+];
+const CONTEXT_URI = 'demo:playlists:0'; // what the mood fixtures are "playing from"
+
+function demoTracks(record) {
+  if (record.kind === 'track') return [];
+  const seed = record.uri.length + Number(record.uri.split(':').pop());
+  return Array.from({ length: 14 }, (_, i) => ({
+    id: `${record.uri}:t${i}`,
+    uri: `${record.uri}:t${i}`,
+    title: `${WORDS[(seed + i) % WORDS.length]} ${NOUNS[(seed * 3 + i) % NOUNS.length]}`,
+    artist: record.subtitle === 'you' ? 'Various Artists' : record.subtitle,
+    durationMs: 150_000 + ((seed + i * 37) % 90) * 1000,
+    playable: i !== 9, // one unavailable row, to show that state
+    url: 'https://open.spotify.com/',
+  }));
 }
 
-export function playDemoRecord(record) {
+const allRecords = () => [...shelf('playlists'), ...shelf('albums'), ...shelf('liked')];
+const recordByUri = (uri) => allRecords().find((r) => r.uri === uri) ?? null;
+
+// Original placeholder lines (not real lyrics), timed like a song so the waterfall can be reviewed
+const DEMO_LINES = [
+  'Highlighter hum and a half-cold cup',
+  'Margins full of the things I wrote',
+  'Window rain keeps the beat for me',
+  '♪',
+  'One more page and then I’ll look up',
+  'Chapter nine in a borrowed coat',
+  'Every line is a melody',
+  'Turn it over, turn it over',
+  'Let the record spin a little slower',
+  'All the notes I’m keeping closer',
+  '♪',
+  'Clock on the wall says twenty to two',
+  'Flashcards fall like autumn leaves',
+  'I can hear the city breathe',
+  'Turn it over, turn it over',
+  'Let the record spin a little slower',
+  'All the notes I’m keeping closer',
+  'Side A done, I’ll flip to side B',
+  'Pencil down, it’s just the song and me',
+];
+const DEMO_LRC = DEMO_LINES.map((text, i) => {
+  const t = 8 + i * 6.5;
+  return `[${String(Math.floor(t / 60)).padStart(2, '0')}:${(t % 60).toFixed(2).padStart(5, '0')}]${text === '♪' ? '' : text}`;
+}).join('\n');
+
+const freePlan = () => new URLSearchParams(window.location.search).get('plan') === 'free';
+
+function playDemoTrack(record, track) {
   setState('playback', {
     status: 'ready',
     isPlaying: true,
-    trackTitle: record.title,
-    trackArtist: record.subtitle,
+    trackId: track.id,
+    trackTitle: track.title,
+    trackArtist: track.artist,
+    primaryArtist: track.artist,
     album: record.kind === 'track' ? record.meta : record.title,
     trackUrl: 'https://open.spotify.com/',
     artUrl: record.artUrl,
     artThumbUrl: record.thumbUrl,
+    contextUri: record.kind === 'track' ? null : record.uri,
+    device: 'remote',
     progressMs: 0,
     progressAt: Date.now(),
-    durationMs: 195_000,
+    durationMs: track.durationMs,
   });
-  notify(`Putting on ${record.title}`, 'success');
+  notify(`Putting on ${track.title}`, 'success');
 }
+
+function playDemoRecord(record) {
+  const track =
+    record.kind === 'track'
+      ? { id: record.id, title: record.title, artist: record.subtitle, durationMs: 200_000 }
+      : demoTracks(record)[0];
+  playDemoTrack(record, track);
+}
+
+// Drop-in replacements for app.js's services
+export const services = {
+  loadLibrary: loadDemoLibrary,
+  playRecord: async (record) => (playDemoRecord(record), true),
+  playTrack: async (record, track) => (playDemoTrack(record, track), true),
+  seek: async (ms) => (setState('playback', { progressMs: ms, progressAt: Date.now() }), true),
+  fetchPlan: async () => (freePlan() ? 'free' : 'premium'),
+  fetchLyrics: async () => {
+    await new Promise((r) => setTimeout(r, 300)); // a little latency, like the real thing
+    return { synced: DEMO_LRC, plain: null, instrumental: false };
+  },
+  tracks: {
+    tracks: async (record) => ({ items: demoTracks(record), next: null }),
+    contextRecord: async (uri) => recordByUri(uri),
+    liked: async () =>
+      shelf('liked').map((r) => ({
+        id: r.id,
+        uri: r.uri,
+        title: r.title,
+        artist: r.subtitle,
+        durationMs: 200_000,
+        playable: true,
+        url: r.url,
+      })),
+  },
+};
 
 export function runDemo(name, params) {
   if (params.get('still') === '1') document.documentElement.style.transition = 'none';
@@ -221,6 +338,9 @@ export function runDemo(name, params) {
   setState('playback', {
     status: 'ready',
     isPlaying: params.get('playing') !== '0',
+    trackId: `${CONTEXT_URI}:t2`, // the third song of the first playlist, so the Tracks tab marks it
+    primaryArtist: fixture.artist,
+    contextUri: CONTEXT_URI,
     trackTitle: fixture.title,
     trackArtist: fixture.artist,
     album: fixture.album,
@@ -232,4 +352,15 @@ export function runDemo(name, params) {
     durationMs: 214_000,
   });
   if (params.get('timer') === 'open') document.getElementById('btn-timer-open').click();
+  const panel = params.get('panel');
+  if (panel === 'tracks' || panel === 'lyrics') setState('panel', { active: panel });
+  if (params.get('press') === 'play')
+    setTimeout(() => document.getElementById('btn-crate-play').click(), 500);
+  if (params.get('drawer') === '1') {
+    const record = state.library.items[state.library.selected];
+    if (record) {
+      loadTracks('preview', record);
+      setState('panel', { drawerOpen: true });
+    }
+  }
 }

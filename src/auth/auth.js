@@ -2,7 +2,10 @@ import { generateRandomString, createCodeChallenge } from './pkce.js';
 
 // Spotify API Configurations
 export const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || ''; // Your Spotify Client ID (Dev-Dashboard)
-export const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || 'http://127.0.0.1:5173/';
+// Spotify sends the user back to the address Studify is opened at, so one build works on any host
+// (127.0.0.1 locally, any *.netlify.app name online). That exact address must be listed under Redirect
+// URIs in the Spotify dashboard. VITE_SPOTIFY_REDIRECT_URI is only an override for unusual setups.
+export const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/`;
 export const PLAYBACK_SCOPES = [
   'user-read-currently-playing',
   'user-read-playback-state',
@@ -10,7 +13,13 @@ export const PLAYBACK_SCOPES = [
 ];
 // The record crate reads the user's playlists, saved albums and liked songs
 export const LIBRARY_SCOPES = ['playlist-read-private', 'playlist-read-collaborative', 'user-library-read'];
-export const SCOPES = [...PLAYBACK_SCOPES, ...LIBRARY_SCOPES];
+// Reading the account plan (Free / Premium) — decides between full control and follow mode
+export const PROFILE_SCOPES = ['user-read-private'];
+// The in-browser player ("Play here", Premium) — required by Spotify's Web Playback SDK
+export const PLAYER_SCOPES = ['streaming', 'user-read-email', 'user-read-private'];
+export const SCOPES = [
+  ...new Set([...PLAYBACK_SCOPES, ...LIBRARY_SCOPES, ...PROFILE_SCOPES, ...PLAYER_SCOPES]),
+];
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
@@ -26,14 +35,19 @@ export class AuthError extends Error {
 // 1. Redirect User to Spotify Authorization
 export async function redirectToSpotifyAuth() {
   if (!CLIENT_ID) throw new AuthError('AUTH_NOT_CONFIGURED');
+  // PKCE needs crypto.subtle, which browsers only provide on secure pages (https, or 127.0.0.1).
+  // Typical cause: a phone opening the dev server at http://192.168.x.x — Spotify would refuse that
+  // redirect address anyway, so say what to do instead of failing on a missing API.
+  if (!window.isSecureContext || !globalThis.crypto?.subtle) throw new AuthError('AUTH_INSECURE_PAGE');
 
   const codeVerifier = generateRandomString(64);
   const codeChallenge = await createCodeChallenge(codeVerifier);
   // `state` ties the callback to this login attempt, so a forged redirect can't log us in.
-  // sessionStorage: both values only need to survive this tab's round-trip to Spotify
+  // localStorage, not sessionStorage: on Android the login can come back in a different tab, which
+  // would lose per-tab storage. Both values are single-use and deleted as soon as the callback is read.
   const authState = generateRandomString(16);
-  sessionStorage.setItem('code_verifier', codeVerifier);
-  sessionStorage.setItem('auth_state', authState);
+  localStorage.setItem('code_verifier', codeVerifier);
+  localStorage.setItem('auth_state', authState);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -56,11 +70,11 @@ export async function handleRedirectCallback(search = window.location.search) {
   const error = params.get('error');
   if (!code && !error) return false;
 
-  const expectedState = sessionStorage.getItem('auth_state');
-  const codeVerifier = sessionStorage.getItem('code_verifier');
+  const expectedState = localStorage.getItem('auth_state');
+  const codeVerifier = localStorage.getItem('code_verifier');
   // Single-use — clear before anything can throw
-  sessionStorage.removeItem('auth_state');
-  sessionStorage.removeItem('code_verifier');
+  localStorage.removeItem('auth_state');
+  localStorage.removeItem('code_verifier');
 
   if (error) throw new AuthError(error === 'access_denied' ? 'AUTH_DENIED' : 'AUTH_FAILED', error);
   if (!expectedState || params.get('state') !== expectedState) throw new AuthError('AUTH_STATE_MISMATCH');
@@ -165,5 +179,6 @@ export function logout() {
   localStorage.removeItem('spotify_token_expires_at');
   localStorage.removeItem('spotify_refresh_token');
   localStorage.removeItem('spotify_scope');
-  localStorage.removeItem('code_verifier'); // left behind by builds before 1.2
+  localStorage.removeItem('code_verifier');
+  localStorage.removeItem('auth_state');
 }

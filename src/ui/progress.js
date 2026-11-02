@@ -1,4 +1,4 @@
-import { subscribe } from '../state.js';
+import { subscribe, canControl } from '../state.js';
 
 const TICK_MS = 500;
 const SEEK_DEBOUNCE_MS = 250; // arrow keys on the slider shouldn't fire a request per press
@@ -34,10 +34,10 @@ export function mountProgress({ onSeek }) {
     return playback.progressMs + drift;
   }
 
-  subscribe('playback', (p) => {
+  subscribe('playback', (p, s) => {
     playback = p;
     const ready = p.status === 'ready' && p.durationMs > 0;
-    slider.disabled = !ready;
+    slider.disabled = !ready || !canControl(s); // free accounts: watch the bar, seek in the Spotify app
     slider.max = String(p.durationMs || 1);
     total.textContent = formatClock(p.durationMs);
     if (!dragging) paint(currentPosition());
@@ -45,6 +45,11 @@ export function mountProgress({ onSeek }) {
     // Tick only while something is actually playing
     clearInterval(ticker);
     ticker = ready && p.isPlaying ? setInterval(() => !dragging && paint(currentPosition()), TICK_MS) : null;
+  });
+
+  // The plan (Free / Premium) can arrive after the first track
+  subscribe('auth', (_, s) => {
+    slider.disabled = !(s.playback.status === 'ready' && s.playback.durationMs > 0) || !canControl(s);
   });
 
   slider.addEventListener('input', () => {

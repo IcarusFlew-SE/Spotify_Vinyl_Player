@@ -58,6 +58,25 @@ describe('spotifyFetch', () => {
     await expect(spotifyFetch('/me/player/next')).rejects.toMatchObject({ code: 'RESTRICTED' });
   });
 
+  it('recognises an account that was never added to the app (development mode)', async () => {
+    fetch.mockImplementation(async () =>
+      json(403, {
+        error: {
+          status: 403,
+          message: 'Check settings on developer.spotify.com/dashboard, the user may not be registered.',
+        },
+      }),
+    );
+    await expect(spotifyFetch('/me/playlists')).rejects.toMatchObject({ code: 'USER_NOT_REGISTERED' });
+    await expect(spotifyFetch('/me/player/play')).rejects.toMatchObject({ code: 'USER_NOT_REGISTERED' });
+  });
+
+  it("follows a paged response's absolute next URL", async () => {
+    fetch.mockResolvedValue(json(200, { items: [] }));
+    await spotifyFetch('https://api.spotify.com/v1/albums/a/tracks?offset=50&limit=50');
+    expect(fetch.mock.calls[0][0]).toBe('https://api.spotify.com/v1/albums/a/tracks?offset=50&limit=50');
+  });
+
   it('maps a failed fetch to NETWORK_ERROR and a missing token to UNAUTHORIZED', async () => {
     fetch.mockRejectedValue(new TypeError('Failed to fetch'));
     await expect(spotifyFetch('/me/player')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });

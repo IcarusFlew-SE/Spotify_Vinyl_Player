@@ -38,11 +38,12 @@
 }
 
 .column > .card,
-.column > .crate__body {
+.column > .side__panels {
   flex: 1;
+  min-height: 0;
 }
 
-.crate {
+.side {
   height: max(80svh, 560px);
 }
 

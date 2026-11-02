@@ -104,3 +104,82 @@ describe('playRecord', () => {
     expect(spotifyFetch.mock.lastCall[1].body).toEqual({ uris: ['t1', 't2'], offset: { position: 1 } });
   });
 });
+
+describe('track lists', () => {
+  it('lists a playlist page with only the needed fields, marking local and unavailable tracks', async () => {
+    spotifyFetch.mockResolvedValue({
+      items: [
+        { track: { id: 'a', uri: 'ua', name: 'A', duration_ms: 1000, artists: [{ name: 'X' }] } },
+        { track: { id: 'b', uri: 'ub', name: 'B', duration_ms: 1000, is_local: true, artists: [] } },
+        {
+          track: {
+            id: 'c',
+            uri: 'uc',
+            name: 'C',
+            duration_ms: 1000,
+            is_playable: false,
+            artists: [{ name: 'Y' }],
+          },
+        },
+        { track: null },
+      ],
+      next: 'https://api.spotify.com/v1/playlists/p/tracks?offset=100',
+    });
+    const page = await library.fetchTracks({ kind: 'playlist', uri: 'spotify:playlist:p' });
+    expect(page.items.map((t) => [t.title, t.playable])).toEqual([
+      ['A', true],
+      ['B', false],
+      ['C', false],
+    ]);
+    expect(page.next).toContain('offset=100');
+    const [path, { query }] = spotifyFetch.mock.lastCall;
+    expect(path).toBe('/playlists/p/tracks');
+    expect(query).toMatchObject({ limit: 100, market: 'from_token' });
+    expect(query.fields).toContain('is_playable');
+  });
+
+  it('follows the next page URL as-is', async () => {
+    spotifyFetch.mockResolvedValue({ items: [], next: null });
+    await library.fetchTracks(
+      { kind: 'album', uri: 'spotify:album:a' },
+      'https://api.spotify.com/v1/next-page',
+    );
+    expect(spotifyFetch.mock.lastCall).toEqual([
+      'https://api.spotify.com/v1/next-page',
+      { query: undefined },
+    ]);
+  });
+
+  it('turns a context URI into a record, or null when it cannot be listed', async () => {
+    spotifyFetch.mockResolvedValue({
+      id: 'p',
+      uri: 'spotify:playlist:p',
+      name: 'Focus',
+      owner: { display_name: 'me' },
+      tracks: { total: 3 },
+      images,
+    });
+    await expect(library.fetchContextRecord('spotify:playlist:p')).resolves.toMatchObject({
+      kind: 'playlist',
+      title: 'Focus',
+    });
+    await expect(library.fetchContextRecord('spotify:user:me:collection')).resolves.toMatchObject({
+      kind: 'collection',
+    });
+    await expect(library.fetchContextRecord('spotify:artist:x')).resolves.toBeNull();
+    await expect(library.fetchContextRecord(null)).resolves.toBeNull();
+  });
+
+  it('starts a track inside its playlist or album, or queues liked songs from it', async () => {
+    const track = { uri: 't2', playable: true };
+    await library.playTrack({ kind: 'album', uri: 'spotify:album:a' }, track, []);
+    expect(spotifyFetch.mock.lastCall[1].body).toEqual({
+      context_uri: 'spotify:album:a',
+      offset: { uri: 't2' },
+    });
+
+    const tracks = [{ uri: 't1', playable: true }, { uri: 'tx', playable: false }, track];
+    await library.playTrack({ kind: 'collection', uri: 'spotify:collection' }, track, tracks);
+    expect(spotifyFetch.mock.lastCall[1].body).toEqual({ uris: ['t1', 't2'], offset: { uri: 't2' } });
+  });
+});

@@ -1,8 +1,8 @@
-import { subscribe } from '../state.js';
+import { subscribe, canControl } from '../state.js';
 import { announce } from './announcer.js';
 
 // Player card text and transport, the header's connect button, and the account chip
-export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout }) {
+export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout, onPlayHere, canPlayHere }) {
   const meta = document.querySelector('.player__meta');
   const title = document.getElementById('track-title');
   const artist = document.getElementById('track-artist');
@@ -14,6 +14,8 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout 
   const btnLogin = document.getElementById('btn-login');
   const accountMenu = document.querySelector('.account__menu');
   const btnDisconnect = document.getElementById('btn-disconnect');
+  const btnDevice = document.getElementById('btn-device');
+  const deviceText = document.getElementById('device-text');
 
   title.classList.add('skeleton-text');
   artist.classList.add('skeleton-text');
@@ -35,7 +37,7 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout 
       artist.textContent = [p.trackArtist, p.album].filter(Boolean).join(' · ');
     } else if (connected) {
       title.textContent = 'Put a record on';
-      artist.textContent = 'Pick one from your records, or play something in Spotify.';
+      artist.textContent = 'Pick one from your records — Spotify just needs to be open.';
     } else {
       title.textContent = 'No Track Selected';
       artist.textContent = 'Connect to Spotify to start playing';
@@ -43,12 +45,28 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout 
 
     playIcon.setAttribute('href', p.isPlaying ? '#i-pause' : '#i-play');
     btnPlay.setAttribute('aria-label', p.isPlaying ? 'Pause' : 'Play');
-    btnPrev.disabled = !connected;
-    btnNext.disabled = !connected;
-    btnPlay.disabled = !connected;
+    // Follow mode: Spotify doesn't let apps control free accounts — Studify shows, the Spotify app controls
+    const control = canControl(s);
+    btnPrev.disabled = !control;
+    btnNext.disabled = !control;
+    btnPlay.disabled = !control;
 
     // The disabled controls explain themselves (DESIGN B3)
-    hint.textContent = auth === 'disconnected' ? 'Connect Spotify to use the controls.' : '';
+    hint.textContent =
+      auth === 'disconnected'
+        ? 'Connect Spotify to use the controls.'
+        : connected && !control
+          ? 'Free account: play, pause and skip in the Spotify app — Studify follows along.'
+          : '';
+
+    // "Play here" (Premium, computer browsers): this tab becomes the Spotify device
+    btnDevice.hidden = !(control && s.auth.plan === 'premium' && canPlayHere());
+    const here = p.device === 'browser';
+    btnDevice.setAttribute('aria-pressed', String(here));
+    deviceText.textContent = here ? 'Playing in this browser' : 'Play here';
+    btnDevice.title = here
+      ? 'To move the music back, pick a device in the Spotify app'
+      : 'Play the music in this tab — tightest lyric sync';
     btnLogin.hidden = auth !== 'disconnected';
     if (!connected) accountMenu.open = false;
 
@@ -65,6 +83,9 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout 
   btnNext.addEventListener('click', onNext);
   btnPrev.addEventListener('click', onPrev);
   btnLogin.addEventListener('click', onLogin);
+  btnDevice.addEventListener('click', () => {
+    if (btnDevice.getAttribute('aria-pressed') !== 'true') onPlayHere();
+  });
   btnDisconnect.addEventListener('click', () => {
     accountMenu.open = false;
     onLogout();

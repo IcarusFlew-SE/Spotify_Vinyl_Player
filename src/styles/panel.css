@@ -1,0 +1,402 @@
+/* Side panel — Records · Tracks · Lyrics share one area; the active one fills it.
+   Panels sit in the same grid cell so a switch can cross-animate without moving the layout. */
+.side__panels {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.panel {
+  grid-area: 1 / 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transform-origin: 50% 0;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.panel--records .crate__body {
+  flex: 1;
+}
+
+.panel--list,
+.panel--lyrics {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Header of a track list: cover, title, meta ── */
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.list-head__thumb {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-raised);
+}
+
+.list-head__thumb[data-empty] {
+  display: none;
+}
+
+.list-head__text {
+  min-width: 0;
+}
+
+.list-head__title {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  line-height: var(--leading-snug);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-head__meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Track list: one flat scroller, used by the slide-out and the Tracks tab ── */
+.tracklist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+}
+
+.tracklist ol {
+  list-style: none;
+}
+
+.track {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 3.5rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.track:not(:disabled, [aria-disabled='true']):hover,
+.track:focus-visible {
+  background: var(--color-raised);
+}
+
+.track[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.track__num {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.track__num svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-inline: auto;
+  color: var(--color-accent-text);
+}
+
+.track__main {
+  min-width: 0;
+}
+
+.track__title,
+.track__artist {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track__title {
+  font-weight: 600;
+}
+
+.track__artist {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.track__time {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* The song that's playing */
+.track[aria-current='true'] .track__title {
+  color: var(--color-accent-text);
+}
+
+.track.is-skeleton .track__title,
+.track.is-skeleton .track__artist {
+  width: 60%;
+  height: 0.9em;
+  margin-block: 0.25em;
+  border-radius: var(--radius-sm);
+  background: var(--color-raised);
+}
+
+.track.is-skeleton .track__artist {
+  width: 35%;
+}
+
+.tracklist__message {
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ── Slide-out over the shelf ("Tracks ›") ── */
+.drawer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-card);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform var(--dur-slow) var(--ease-standard),
+    visibility 0s linear var(--dur-slow);
+}
+
+.drawer.is-open {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform var(--dur-slow) var(--ease-standard),
+    visibility 0s;
+}
+
+.drawer .list-head {
+  padding-left: var(--space-2);
+}
+
+.btn__chevron {
+  width: 1rem;
+  height: 1rem;
+}
+
+#btn-crate-tracks[hidden] {
+  display: none;
+}
+
+/* ── Lyrics waterfall ── */
+.panel--lyrics {
+  position: relative;
+  container-type: size; /* the lyrics' top/bottom padding is a share of the panel's height */
+}
+
+.lyrics {
+  position: relative; /* line offsets are measured from here */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: 30cqh var(--space-6) 55cqh; /* lets the first and last lines reach the reading line */
+  /* soften the edges instead of hard-clipping lines */
+  mask-image: linear-gradient(transparent, black 12%, black 80%, transparent);
+}
+
+.lyrics::-webkit-scrollbar {
+  display: none;
+}
+
+.lyrics:focus-visible {
+  outline-offset: -4px;
+}
+
+.lyrics__lines {
+  list-style: none;
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Every line the same size, so nothing reflows as the song moves on — only colour changes */
+.lyric {
+  font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.25rem);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  line-height: var(--leading-snug);
+  text-wrap: balance;
+  color: color-mix(in oklab, var(--color-text) 34%, var(--color-card));
+  transition: color var(--dur-base) var(--ease-standard);
+}
+
+.lyric.is-past {
+  color: color-mix(in oklab, var(--color-text) 58%, var(--color-card));
+}
+
+.lyric.is-active {
+  color: var(--color-text);
+}
+
+.lyrics.can-seek .lyric {
+  cursor: pointer;
+}
+
+.lyrics.can-seek .lyric:hover {
+  color: color-mix(in oklab, var(--color-text) 80%, var(--color-card));
+}
+
+/* Unsynced lyrics: plain, readable text — no waterfall */
+.lyrics.is-plain .lyric {
+  color: var(--color-text);
+  font-size: var(--text-lg);
+}
+
+.lyrics__message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: var(--space-6);
+  text-align: center;
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+}
+
+.lyrics__message[hidden] {
+  display: none;
+}
+
+.lyrics__resume {
+  position: absolute;
+  bottom: 4.5rem;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  box-shadow: var(--shadow-pop);
+}
+
+.lyrics__resume[hidden] {
+  display: none;
+}
+
+.lyrics__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-line);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Switch (a checkbox styled as a toggle) ── */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.switch input {
+  appearance: none;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-raised);
+  position: relative;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.25rem - 4px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--color-text);
+  transition: translate var(--dur-fast) var(--ease-standard);
+}
+
+.switch input:checked {
+  background: var(--color-accent);
+}
+
+.switch input:checked::after {
+  translate: 1rem 0;
+  background: var(--color-on-accent);
+}
+
+/* ── "Play here" device button under the transport ── */
+.device {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+
+.device svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.device:hover {
+  background: var(--color-raised);
+  color: var(--color-text);
+}
+
+.device[aria-pressed='true'] {
+  color: var(--color-accent-text);
+}
+
+.device[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer.is-open {
+    transition: none;
+  }
+}

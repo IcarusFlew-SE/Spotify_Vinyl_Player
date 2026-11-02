@@ -22,9 +22,13 @@ beforeEach(async () => {
   session = memoryStorage();
   vi.stubGlobal('localStorage', local);
   vi.stubGlobal('sessionStorage', session);
-  vi.stubGlobal('window', { location: { href: '' } });
+  vi.stubGlobal('window', {
+    location: { href: '', origin: 'https://studify.example' },
+    isSecureContext: true,
+  });
   vi.stubGlobal('fetch', vi.fn());
   vi.stubEnv('VITE_SPOTIFY_CLIENT_ID', 'client-123');
+  vi.stubEnv('VITE_SPOTIFY_REDIRECT_URI', ''); // a developer's .env may set one — test the default
   vi.resetModules(); // CLIENT_ID is read at import time
   auth = await import('./auth.js');
 });
@@ -34,8 +38,20 @@ describe('redirectToSpotifyAuth', () => {
     await auth.redirectToSpotifyAuth();
     const url = new URL(window.location.href);
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
-    expect(url.searchParams.get('state')).toBe(session.store.get('auth_state'));
-    expect(session.store.get('code_verifier')).toHaveLength(64);
+    expect(url.searchParams.get('state')).toBe(local.store.get('auth_state'));
+    expect(local.store.get('code_verifier')).toHaveLength(64);
+    expect(session.store.size).toBe(0); // nothing per-tab: Android may return in a different tab
+  });
+
+  it('explains instead of crashing on an insecure page (e.g. a phone on http://192.168.x.x)', async () => {
+    window.isSecureContext = false;
+    await expect(auth.redirectToSpotifyAuth()).rejects.toMatchObject({ code: 'AUTH_INSECURE_PAGE' });
+    expect(window.location.href).toBe(''); // never left for Spotify
+  });
+
+  it('sends Spotify back to the address Studify is opened at', async () => {
+    await auth.redirectToSpotifyAuth();
+    expect(new URL(window.location.href).searchParams.get('redirect_uri')).toBe('https://studify.example/');
   });
 
   it('refuses to redirect without a client ID', async () => {
@@ -48,8 +64,8 @@ describe('redirectToSpotifyAuth', () => {
 
 describe('handleRedirectCallback', () => {
   beforeEach(() => {
-    session.setItem('auth_state', 'state-1');
-    session.setItem('code_verifier', 'verifier-1');
+    local.setItem('auth_state', 'state-1');
+    local.setItem('code_verifier', 'verifier-1');
   });
 
   it('ignores URLs that are not a callback', async () => {
@@ -61,7 +77,7 @@ describe('handleRedirectCallback', () => {
     await expect(auth.handleRedirectCallback('?code=c1&state=state-1')).resolves.toBe(true);
     expect(fetch.mock.calls[0][1].body.get('code_verifier')).toBe('verifier-1');
     expect(local.store.get('spotify_token')).toBe('at');
-    expect(session.store.size).toBe(0); // single-use values cleared
+    expect(local.store.has('auth_state') || local.store.has('code_verifier')).toBe(false); // single-use values cleared
   });
 
   it('rejects a callback whose state does not match, without calling Spotify', async () => {

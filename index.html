@@ -7,6 +7,11 @@
     <meta name="description" content="Studify — a lo-fi vinyl player for studying with Spotify." />
     <title>Studify — Lo-fi vinyl study player</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- Warm up connections Studify always needs: API calls (CORS, hence crossorigin) and cover images.
+         LRCLIB is only resolved early — a full preconnect would be dropped before the first lyrics lookup. -->
+    <link rel="preconnect" href="https://api.spotify.com" crossorigin />
+    <link rel="preconnect" href="https://i.scdn.co" />
+    <link rel="dns-prefetch" href="https://lrclib.net" />
     <link rel="stylesheet" href="/src/styles/index.css" />
   </head>
   <body>

@@ -1,0 +1,7 @@
+# Netlify response headers (copied into dist/ by Vite). See docs/README.md, S1.
+# The CSP ships as REPORT-ONLY first: violations show in the browser console but nothing is blocked.
+# After real-account testing shows no reports, rename the header to Content-Security-Policy to enforce it.
+/*
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' https://sdk.scdn.co; style-src 'self'; img-src 'self' data: https://*.scdn.co https://*.spotifycdn.com; font-src 'self' data:; connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://lrclib.net https://*.spotify.com wss://*.spotify.com https://*.scdn.co; frame-src https://sdk.scdn.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

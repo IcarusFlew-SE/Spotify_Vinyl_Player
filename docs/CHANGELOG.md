@@ -9,6 +9,8 @@ The short version of each entry below, newest first. The detailed entries follow
 
 | Date | What happened |
 |---|---|
+| 2026-11-03 | **Sturdier and faster.** Studify copes with being offline and stays logged in. Lyrics are saved and often ready before a song starts. It asks Spotify less often when paused or hidden. *Play here* and playlist song lists work again after Spotify's 2026 changes. |
+| 2026-11-03 | **System design & performance plan** added to the documentation home: how Studify is built, plus a plan for caching, offline use, API calls and faster lyrics. |
 | 2026-11-02 | **Clearer message for people who aren't on the access list yet.** Before, they saw "Spotify won't allow that right now" for everything. |
 | 2026-11-02 | **Documentation reorganised.** There's a new "Start here" page with a glossary. The user and setup guides are simpler and no longer repeat each other, and the known problems are listed openly. |
 | 2026-11-02 | **Music can be started from Studify.** You only need the Spotify app open, with no need to press play in it first. |
@@ -34,6 +36,105 @@ Groups: **Added** (new capability) · **Changed** (behaviour differs) · **Fixed
 ---
 
 ## [2.0.0-beta.1] — Unreleased
+
+### Reliability & performance — plan Revision 3 implemented (2026-11-03)
+
+Item IDs (K1, R1…) refer to the [system design plan](./README.md#system-design--performance-plan). Drawbacks D1–D12 are listed there for discussion.
+
+**Fixed**
+- **K1 — *Play here* hidden, and Free accounts not recognised.**
+  - *What:* *Play here* now shows unless the account is known to be Free. Spotify's "Premium required" reply (from the Web API or the player) marks the account as Free, and Studify switches to follow mode. This is remembered for the session, and cleared on disconnect or a new login. The message now explains follow mode.
+  - *Why:* since Feb 2026 Spotify no longer reports `product`.
+  - Files: `src/app.js`, `src/auth/auth.js`, `src/api/profile.js`, `src/ui/controls.js`, `src/messages.js`
+- **K2 — playlist song lists and counts.**
+  - *What:* Studify fetches from `/playlists/{id}/items` (rows under `item`), and falls back once to `/tracks` on a 404, then remembers which works. The count is read from `items.total ?? tracks.total`, and none is shown when Spotify gives no count. A followed playlist explains why its songs can't be listed.
+  - *Why:* Spotify's Feb 2026 change.
+  - Files: `src/api/library.js`, `src/ui/tracklist.js`
+- **R1 — updates could freeze on a bad connection.**
+  - *What:* every request now has a timeout: Spotify API 8 s, token and LRCLIB 10 s.
+  - *Why:* a stuck request held the poller's `inFlight` flag for minutes.
+  - Files: `src/lib/signal.js`, `src/api/client.js`, `src/auth/auth.js`, `src/api/lyrics.js`
+- **R2 — opening Studify offline.**
+  - *What:* a refresh that fails for a *transient* reason keeps the session connected, instead of showing "Connect". The player card says *"You're offline"* instead of an endless skeleton.
+  - *Why:* users were logged out, as far as they could see, just for being offline.
+  - Files: `src/app.js`, `src/auth/auth.js`, `src/ui/controls.js`
+- **Mood colours:** a cover that couldn't be read (for example while offline) is no longer stuck on default colours until reload.
+  - Files: `src/features/mood/index.js`
+
+**Added**
+- **R3 — connection awareness.**
+  - *What:* a new `net` slice, owned by `src/net.js`. Studify counts as offline after 2 failed polls or a browser `offline` event. An offline hint shows, with a screen-reader announcement, and error toasts stay quiet while offline. When the connection returns, Studify polls at once and retries a failed shelf, song list or lyrics.
+  - Files: `src/net.js`, `src/state.js`, `src/app.js`, `src/messages.js`, `src/ui/controls.js`, `src/features/*/index.js`
+- **R5 — saved data.**
+  - *What:* a small IndexedDB store with expiry (`src/lib/db.js`, no library), which falls back to memory if unavailable. It keeps:
+    - lyrics for 30 days ("no lyrics" for 3 days);
+    - the shelf, shown at once and refreshed in the background (re-drawn only if it changed, and the selection kept). It's deleted on disconnect.
+  - Files: `src/lib/db.js`, `src/features/lyrics/index.js`, `src/features/library/index.js`
+- **P2 — lyrics prefetch.**
+  - *What:* at 70% of a song, once the Lyrics panel has been used this session, `GET /me/player/queue` names the next song and its lyrics are looked up ahead of time.
+  - Files: `src/api/player.js`, `src/features/lyrics/index.js`, `src/app.js`
+- **S1 — security headers** (`public/_headers`): a CSP in **report-only** mode, `nosniff`, and a referrer policy.
+- **A6 — preconnect hints** for `api.spotify.com` and `i.scdn.co`, plus a DNS prefetch for `lrclib.net`.
+  - Files: `index.html`
+- **Docs:**
+  - a [real-account test checklist](./TEST_CHECKLIST.md);
+  - the plan's Part 4 (status, measured cost, drawbacks);
+  - User Guide updates (new messages, offline, what's saved);
+  - README known issues;
+  - Implementation Plan status.
+
+**Changed**
+- **P1 — adaptive polling.**
+  - *What:* a `setTimeout` chain timed by the pure `nextDelay()`:
+    - 1 s with lyrics visible, 2 s playing, 4 s paused, 15 s with the tab hidden;
+    - one poll just after the song should end;
+    - back-off of 4 → 8 → 16 → 30 s (±20%) after 3 failures;
+    - waits out a `429` cooldown.
+  - *Why:* about 50% fewer calls when paused and 87% fewer when hidden, and the next song shows sooner.
+  - Files: `src/sync.js`
+- **P3 — lyrics lookups:**
+  - lookups wait 250 ms (network only), so skipping doesn't flood LRCLIB;
+  - lookups for the same song in progress are shared;
+  - one quiet retry after 3 s on a network error;
+  - the raw result is stored, so a parser fix applies to saved lyrics.
+  - Files: `src/features/lyrics/index.js`
+- **R4 — caches:** all caches are now LRU, through one helper (`src/lib/lru.js`). Track lists are capped at 50 and expire after 10 min; lyrics are held in memory up to 200.
+  - Files: `src/lib/lru.js`, `src/features/tracks/index.js`, `src/features/mood/index.js`, `src/features/library/index.js`
+- **P4 — lyrics drawing:** a line change only updates the lines between the old and new position (O(moved) instead of O(all)).
+  - Files: `src/ui/lyrics.js`
+
+**Internal**
+- 23 new tests, 128 in total: LRU, the sync loop (delays, end-of-song poll, offline and recovery, never two requests at once), the lyrics feature (debounce, sharing, retry, "none" memory, prefetch), playlist fallback, the client timeout, and session/plan memory.
+- Bundle size: +2.9 kB gzipped (17.4 → 20.3 kB). No new dependencies.
+
+### Docs — system design & performance plan, revision 2 (2026-11-03)
+
+**Changed**
+- **The plan was rewritten as a full technical evaluation.** It now has:
+  - **Part 1, the architecture:** the runtime model, module map, state slices, main flows, and the error and security model;
+  - **Part 2, an issue register:** the README's known issues (K1–K3) plus the gaps found in the code, scored by severity;
+  - **Part 3, recommended actions:** for each one, the options are compared on speed, reliability, user experience and risk, the choice is explained, and the rejected options are listed.
+  - The plan follows the ground rules: no cost, no new runtime libraries, low risk.
+- **Changes since Revision 1:**
+  - **Starting offline:** Studify now stays `connected` and shows offline through a separate `net` slice, instead of adding a new auth status. This touches less code, so less can break.
+  - **Paused polling:** every 4 s instead of 5 s.
+  - **LRCLIB `/get-cached`:** dropped, because it isn't in the stable API documentation.
+  - **Service worker:** deferred.
+- A link from the root README's "How it's built" section.
+- *Why:* the owner asked for the direct technical design, plus a costed, low-risk evaluation of every known issue and enhancement.
+- Files: `docs/README.md`, `README.md`
+
+### Docs — system design & performance plan (2026-11-03)
+
+**Added**
+- **System design & performance plan**, a new section in the documentation home. It covers:
+  - the architecture and the reasons behind it;
+  - where data lives (localStorage, memory caches);
+  - online/offline handling and API calls;
+  - lyrics fetching and rendering;
+  - a phased optimisation plan (A–E) with decisions for the owner.
+  - *Why:* to review performance, caching and connection handling before more features are built on top. The review found real gaps: no request timeouts (updates can freeze), starting offline shows "disconnected", caches are lost on reload, the track-list cache never expires, and lookups are wasted while skipping songs.
+  - Files: `docs/README.md`
 
 ### Fix — other people see "Spotify won't allow that right now" for everything (2026-11-02)
 

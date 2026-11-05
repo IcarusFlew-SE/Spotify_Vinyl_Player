@@ -133,9 +133,54 @@ describe('track lists', () => {
     ]);
     expect(page.next).toContain('offset=100');
     const [path, { query }] = spotifyFetch.mock.lastCall;
-    expect(path).toBe('/playlists/p/tracks');
+    expect(path).toBe('/playlists/p/items'); // Spotify's Feb 2026 path
     expect(query).toMatchObject({ limit: 100, market: 'from_token' });
     expect(query.fields).toContain('is_playable');
+  });
+
+  it('reads rows from the new `item` field as well as the old `track` field', async () => {
+    spotifyFetch.mockResolvedValue({
+      items: [
+        { item: { id: 'a', uri: 'ua', name: 'New', duration_ms: 1, artists: [{ name: 'X' }] } },
+        { track: { id: 'b', uri: 'ub', name: 'Old', duration_ms: 1, artists: [{ name: 'Y' }] } },
+      ],
+      next: null,
+    });
+    const page = await library.fetchTracks({ kind: 'playlist', uri: 'spotify:playlist:p' });
+    expect(page.items.map((t) => t.title)).toEqual(['New', 'Old']);
+  });
+
+  it('falls back to the old /tracks path once on 404, then remembers it', async () => {
+    spotifyFetch
+      .mockRejectedValueOnce(Object.assign(new Error('NOT_FOUND'), { code: 'NOT_FOUND' }))
+      .mockResolvedValue({ items: [], next: null });
+    await library.fetchTracks({ kind: 'playlist', uri: 'spotify:playlist:p' });
+    await library.fetchTracks({ kind: 'playlist', uri: 'spotify:playlist:q' });
+    expect(spotifyFetch.mock.calls.map((c) => c[0])).toEqual([
+      '/playlists/p/items',
+      '/playlists/p/tracks',
+      '/playlists/q/tracks',
+    ]);
+  });
+
+  it('does not fall back when Spotify refuses the playlist (403)', async () => {
+    spotifyFetch.mockRejectedValueOnce(Object.assign(new Error('RESTRICTED'), { code: 'RESTRICTED' }));
+    await expect(library.fetchTracks({ kind: 'playlist', uri: 'spotify:playlist:p' })).rejects.toMatchObject({
+      code: 'RESTRICTED',
+    });
+    expect(spotifyFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a playlist count from `items.total`, and none when Spotify gives no count', async () => {
+    spotifyFetch.mockResolvedValue({
+      items: [
+        { id: 'p1', uri: 'u1', name: 'New', items: { total: 2 }, images },
+        { id: 'p2', uri: 'u2', name: 'Bare', images },
+      ],
+    });
+    const [a, b] = await library.fetchLibrary('playlists');
+    expect(a.meta).toBe('2 tracks');
+    expect(b.meta).toBe('');
   });
 
   it('follows the next page URL as-is', async () => {

@@ -22,6 +22,12 @@ describe('spotifyFetch', () => {
     expect(fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer token-a');
   });
 
+  it('gives every request a timeout, and reports a timeout as a network error', async () => {
+    fetch.mockRejectedValue(new DOMException('Request timed out', 'TimeoutError'));
+    await expect(spotifyFetch('/me/player')).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+    expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('returns null for 204 and empty-bodied 200', async () => {
     fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
     fetch.mockResolvedValueOnce(new Response('', { status: 200 }));

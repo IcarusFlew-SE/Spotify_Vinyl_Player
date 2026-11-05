@@ -44,3 +44,17 @@ export async function startPlayback(body) {
 }
 
 export const play = () => startPlayback();
+
+// The song that plays next (for lyrics prefetch) — follows shuffle, unlike a track list.
+// Returns null when the queue is empty or the next item is a podcast episode (no lyrics lookup).
+export async function fetchNextTrack() {
+  const next = (await spotifyFetch('/me/player/queue'))?.queue?.[0];
+  if (!next?.artists?.length) return null;
+  return {
+    trackId: next.id ?? next.uri,
+    title: next.name,
+    artist: next.artists[0].name,
+    album: next.album?.name ?? null,
+    durationMs: next.duration_ms ?? 0,
+  };
+}

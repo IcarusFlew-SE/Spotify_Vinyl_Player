@@ -1,4 +1,5 @@
 import { generateRandomString, createCodeChallenge } from './pkce.js';
+import { timeoutSignal } from '../lib/signal.js';
 
 // Spotify API Configurations
 export const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID || ''; // Your Spotify Client ID (Dev-Dashboard)
@@ -22,6 +23,7 @@ export const SCOPES = [
 ];
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const TOKEN_TIMEOUT_MS = 10_000; // a hung token request must not block startup or every API call
 
 export class AuthError extends Error {
   constructor(code, detail = null) {
@@ -84,6 +86,7 @@ export async function handleRedirectCallback(search = window.location.search) {
     response = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: timeoutSignal(TOKEN_TIMEOUT_MS),
       body: new URLSearchParams({
         client_id: CLIENT_ID,
         grant_type: 'authorization_code',
@@ -100,6 +103,7 @@ export async function handleRedirectCallback(search = window.location.search) {
   if (!response.ok || !data.access_token) {
     throw new AuthError('AUTH_FAILED', data.error_description || data.error || response.status);
   }
+  localStorage.removeItem(PLAN_KEY); // a fresh login may be a different account
   storeTokenResponse(data);
   return true;
 }
@@ -124,6 +128,7 @@ async function requestRefresh() {
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    signal: timeoutSignal(TOKEN_TIMEOUT_MS),
     body: new URLSearchParams({
       client_id: CLIENT_ID,
       grant_type: 'refresh_token',
@@ -159,6 +164,17 @@ function storeTokenResponse(data) {
   if (data.scope) localStorage.setItem('spotify_scope', data.scope);
 }
 
+// A session exists when a refresh token is stored — even if it can't be refreshed right now (offline)
+export const hasSession = () => Boolean(localStorage.getItem('spotify_refresh_token'));
+
+// Free / Premium, as learned from Spotify (see app.js). Spotify stopped reporting the plan in Feb 2026,
+// so it's remembered for the session once a "Premium required" reply reveals it.
+const PLAN_KEY = 'studify_plan';
+export const rememberedPlan = () => localStorage.getItem(PLAN_KEY) || 'unknown';
+export function rememberPlan(plan) {
+  if (plan === 'free' || plan === 'premium') localStorage.setItem(PLAN_KEY, plan);
+}
+
 // Sessions from before a scope was added don't have it — the user must reconnect to grant it
 export function hasScopes(required) {
   const granted = (localStorage.getItem('spotify_scope') || '').split(' ');
@@ -181,4 +197,5 @@ export function logout() {
   localStorage.removeItem('spotify_scope');
   localStorage.removeItem('code_verifier');
   localStorage.removeItem('auth_state');
+  localStorage.removeItem(PLAN_KEY);
 }

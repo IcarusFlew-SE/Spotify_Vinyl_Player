@@ -6,14 +6,18 @@ import {
   getValidToken,
   logout,
   hasScopes,
+  hasSession,
+  rememberedPlan,
+  rememberPlan,
   PROFILE_SCOPES,
   PLAYER_SCOPES,
 } from './auth/auth.js';
-import { play, pause, next, previous, seek } from './api/player.js';
+import { play, pause, next, previous, seek, fetchNextTrack } from './api/player.js';
 import { fetchLibrary, playRecord, fetchTracks, fetchContextRecord, playTrack } from './api/library.js';
 import { fetchPlan } from './api/profile.js';
 import { fetchLyrics } from './api/lyrics.js';
 import { startSync, stopSync, syncNow, setFastPolling } from './sync.js';
+import { startNet } from './net.js';
 import { isSdkSupported, isPlayingHere, playHere, here } from './playback/sdk.js';
 import {
   initTimer,
@@ -24,15 +28,21 @@ import {
   requestNotificationPermission,
 } from './features/timer/timer.js';
 import { startMoodSync } from './features/mood/index.js';
-import { loadLibrary, resetLibrary } from './features/library/index.js';
+import { loadLibrary, resetLibrary, retryLibrary } from './features/library/index.js';
 import {
   setTrackFetchers,
   loadTracks,
   loadMoreTracks,
   followContext,
   resetTracks,
+  retryTracks,
 } from './features/tracks/index.js';
-import { setLyricsFetcher, startLyricsSync } from './features/lyrics/index.js';
+import {
+  setLyricsFetcher,
+  setNextTrackFetcher,
+  startLyricsSync,
+  retryLyrics,
+} from './features/lyrics/index.js';
 import { notifyError } from './messages.js';
 import { mountTheme } from './ui/theme.js';
 import { mountDeck } from './ui/deck.js';
@@ -57,6 +67,7 @@ const services = {
   seek: (ms) => runPlayback(() => (isPlayingHere() ? here.seek(ms) : seek(ms))),
   fetchPlan,
   fetchLyrics,
+  fetchNextTrack, // lyrics prefetch; demo mode has none
   tracks: {
     tracks: fetchTracks,
     contextRecord: fetchContextRecord,
@@ -84,10 +95,12 @@ subscribe('auth', ({ status }) => {
     setState('playback', { ...IDLE_PLAYBACK, status: 'loading' }); // skeleton until the first poll lands
     if (!DEMO) startSync(); // begins polling currently-playing, drives all subsequent playback updates
     services.loadLibrary(state.library.kind);
-    // Free or Premium decides between full control and follow mode; older sessions lack the scope
+    // Free or Premium decides between full control and follow mode. Start from what this session
+    // already learned; Spotify's /me rarely says any more (Feb 2026), so 'unknown' never overrides it.
+    setState('auth', { plan: DEMO ? 'unknown' : rememberedPlan() });
     if (hasScopes(PROFILE_SCOPES) || DEMO) {
       services.fetchPlan().then(
-        (plan) => setState('auth', { plan }),
+        (plan) => plan !== 'unknown' && setPlan(plan),
         () => {},
       );
     }
@@ -100,6 +113,29 @@ subscribe('auth', ({ status }) => {
       resetTracks();
     }
   }
+});
+
+function setPlan(plan) {
+  setState('auth', { plan });
+  if (!DEMO) rememberPlan(plan);
+}
+
+// Spotify's "Premium required" reply (Web API 403, or the player's account_error) is the reliable
+// sign of a Free account now — switch to follow mode for the rest of the session
+function learnFromError(err) {
+  if (err?.code === 'PREMIUM_REQUIRED') setPlan('free');
+}
+
+// Connection back: catch up at once, and retry whatever failed while offline
+let wasOnline = true;
+subscribe('net', ({ online }) => {
+  const back = online && !wasOnline;
+  wasOnline = online;
+  if (!back || !isConnected()) return;
+  if (!DEMO) syncNow();
+  retryLibrary();
+  retryTracks();
+  retryLyrics();
 });
 
 // The Tracks tab follows whatever is playing
@@ -115,6 +151,7 @@ async function runPlayback(action) {
     return true;
   } catch (err) {
     if (err.code === 'UNAUTHORIZED') setState('auth', { status: 'disconnected' });
+    learnFromError(err);
     notifyError(err, 'Playback action failed.');
     return false;
   }
@@ -145,6 +182,7 @@ async function startPlayingHere() {
       },
     });
   } catch (err) {
+    learnFromError(err);
     notifyError(err);
   }
 }
@@ -229,10 +267,17 @@ async function init() {
     if (window.location.search) window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  // Stored token still valid, or refreshable via the stored refresh token
-  // (a refresh can fail offline — stay disconnected rather than break startup)
-  const token = await getValidToken().catch(() => null);
-  setState('auth', { status: token ? 'connected' : 'disconnected' });
+  // Stored token still valid, or refreshable via the stored refresh token.
+  // A refresh that *throws* failed for a transient reason (offline, Spotify down) — the session is
+  // intact, so stay connected and let the poller reconnect. Only a missing or revoked session
+  // (null) means disconnected.
+  let connected;
+  try {
+    connected = Boolean(await getValidToken());
+  } catch {
+    connected = hasSession();
+  }
+  setState('auth', { status: connected ? 'connected' : 'disconnected' });
 }
 
 async function start() {
@@ -241,10 +286,13 @@ async function start() {
     Object.assign(services, demo.services);
     setTrackFetchers(services.tracks);
     setLyricsFetcher(services.fetchLyrics);
+    setNextTrackFetcher(demo.services.fetchNextTrack); // none in demo mode — never call Spotify
     demo.runDemo(DEMO, new URLSearchParams(window.location.search));
   } else {
     setTrackFetchers(services.tracks);
     setLyricsFetcher(services.fetchLyrics);
+    setNextTrackFetcher(services.fetchNextTrack);
+    startNet();
     await init();
   }
 }

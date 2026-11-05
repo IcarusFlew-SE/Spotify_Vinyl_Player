@@ -5,6 +5,9 @@ import { pickImage } from './images.js';
 const PAGE = 50; // Spotify's maximum page size; the first page is plenty for a crate
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// Spotify's Feb 2026 change renamed a playlist's `tracks` to `items`. Read both; when neither has a
+// count, show none rather than a wrong "0 tracks".
+const playlistTotal = (p) => p.items?.total ?? p.tracks?.total ?? null;
 const artistNames = (artists) => artists?.map((a) => a.name).join(', ') ?? '';
 
 // Normalise Spotify's three shapes into one record type the crate can render
@@ -15,7 +18,7 @@ const toRecord = {
     kind: 'playlist',
     title: p.name,
     subtitle: p.owner?.display_name ?? '',
-    meta: plural(p.tracks?.total ?? 0, 'track'),
+    meta: playlistTotal(p) == null ? '' : plural(playlistTotal(p), 'track'),
     artUrl: pickImage(p.images, 300),
     thumbUrl: pickImage(p.images, 64),
     url: p.external_urls?.spotify ?? null,
@@ -67,9 +70,15 @@ export function playRecord(record, records) {
 // ── Track lists (the crate's "Tracks ›" preview and the Tracks tab) ──
 
 const TRACK_PAGE = { playlist: 100, album: 50 }; // each endpoint's maximum
-// Only the fields a row needs — playlists can be large
-const PLAYLIST_FIELDS =
-  'items(track(id,uri,name,duration_ms,is_local,is_playable,type,artists(name),show(name),external_urls(spotify))),next';
+// Only the fields a row needs — playlists can be large. Rows carry the song under `item` (new API)
+// or `track` (old API); Spotify's field filter ignores names a response doesn't have, so ask for both.
+const ROW =
+  'id,uri,name,duration_ms,is_local,is_playable,type,artists(name),show(name),external_urls(spotify)';
+const PLAYLIST_FIELDS = `items(item(${ROW}),track(${ROW})),next`;
+// Feb 2026: /playlists/{id}/tracks became /playlists/{id}/items. Try the new path first and fall back
+// once on 404; whichever works is remembered, so later lists cost a single call.
+const PLAYLIST_PATHS = ['items', 'tracks'];
+let playlistPath = PLAYLIST_PATHS[0];
 
 // One row shape for every source. Local files and tracks unavailable in the user's country can't be
 // started from an app, so they're listed but not playable.
@@ -88,17 +97,29 @@ const idFromUri = (uri) => uri.split(':').pop();
 // First page of a playlist's or album's tracks, or the page at `next` (an absolute URL from Spotify)
 export async function fetchTracks(record, next = null) {
   const kind = record.kind;
-  const path = next ?? `/${kind}s/${idFromUri(record.uri)}/tracks`;
-  const query = next
-    ? undefined
-    : {
-        limit: TRACK_PAGE[kind],
-        market: 'from_token', // makes Spotify report is_playable for this user
-        ...(kind === 'playlist' ? { fields: PLAYLIST_FIELDS } : {}),
-      };
-  const data = await spotifyFetch(path, { query });
-  const items = (data?.items ?? []).map((i) => (kind === 'playlist' ? i?.track : i)).filter(Boolean);
+  const data = next ? await spotifyFetch(next, { query: undefined }) : await firstTrackPage(record);
+  const items = (data?.items ?? [])
+    .map((i) => (kind === 'playlist' ? (i?.item ?? i?.track) : i))
+    .filter(Boolean);
   return { items: items.map(toTrack), next: data?.next ?? null };
+}
+
+async function firstTrackPage(record) {
+  const id = idFromUri(record.uri);
+  const query = { limit: TRACK_PAGE[record.kind], market: 'from_token' }; // is_playable for this user
+  if (record.kind === 'album') return spotifyFetch(`/albums/${id}/tracks`, { query });
+
+  const playlistQuery = { ...query, fields: PLAYLIST_FIELDS };
+  try {
+    return await spotifyFetch(`/playlists/${id}/${playlistPath}`, { query: playlistQuery });
+  } catch (err) {
+    // 403 (not your playlist) is a real answer; only a 404 means "this path doesn't exist here"
+    const other = PLAYLIST_PATHS.find((p) => p !== playlistPath);
+    if (err.code !== 'NOT_FOUND') throw err;
+    const data = await spotifyFetch(`/playlists/${id}/${other}`, { query: playlistQuery });
+    playlistPath = other;
+    return data;
+  }
 }
 
 // What's playing is identified only by a context URI — turn it into a record the Tracks tab can show.
@@ -107,7 +128,7 @@ export async function fetchContextRecord(contextUri) {
   const [, type, id] = contextUri?.split(':') ?? [];
   if (type === 'playlist') {
     const p = await spotifyFetch(`/playlists/${id}`, {
-      query: { fields: 'id,uri,name,owner(display_name),images,external_urls,tracks(total)' },
+      query: { fields: 'id,uri,name,owner(display_name),images,external_urls,tracks(total),items(total)' },
     });
     return toRecord.playlists(p);
   }

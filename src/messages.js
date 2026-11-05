@@ -1,9 +1,10 @@
-import { notify } from './state.js';
+import { state, notify } from './state.js';
 
 // User-facing copy for error codes from the API client (SpotifyError) and auth (AuthError)
 const MESSAGES = {
   NO_ACTIVE_DEVICE: 'Open the Spotify app on any device — no need to play anything — then try again.',
-  PREMIUM_REQUIRED: 'Playback control requires Spotify Premium.',
+  PREMIUM_REQUIRED:
+    'This account is on Spotify Free — Studify will follow along. Play, pause and skip in the Spotify app.',
   UNAUTHORIZED: 'Session expired — please reconnect.',
   RESTRICTED: "Spotify won't allow that right now.",
   USER_NOT_REGISTERED:
@@ -36,6 +37,8 @@ export function errorMessage(err, fallback = 'Something went wrong.') {
 }
 
 export function notifyError(err, fallback) {
+  // While offline, the player card already says so — don't pile a toast on every failed request
+  if (err?.code === 'NETWORK_ERROR' && !state.net.online) return;
   // Anything without a known code shows a generic message — keep the details for whoever debugs it
   if (!(err?.code in MESSAGES) && err?.code !== 'RATE_LIMITED') console.error(err);
   notify(errorMessage(err, fallback), WARNING_CODES.has(err?.code) ? 'warning' : 'error');

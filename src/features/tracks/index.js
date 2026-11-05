@@ -1,16 +1,19 @@
 import { state, setState, EMPTY_TRACKS } from '../../state.js';
+import { LruCache } from '../../lib/lru.js';
 
 // Loads track lists into the `preview` slice (the crate's selected record) or the `context` slice
 // (what's playing). The fetchers are injected so demo mode can serve fixtures.
 let fetchers = null;
-const cache = new Map(); // record uri -> { items, next }
+// record uri -> { items, next }. Bounded, and refreshed after 10 minutes so playlist edits show up
+const cache = new LruCache(50, 10 * 60 * 1000);
 
 export function setTrackFetchers(f) {
   fetchers = f; // { tracks(record, next), contextRecord(uri), liked() }
 }
 
 async function firstPage(record) {
-  if (cache.has(record.uri)) return cache.get(record.uri);
+  const hit = cache.get(record.uri);
+  if (hit) return hit;
   // Liked songs aren't a Spotify context with its own track endpoint — reuse the library list
   const page =
     record.kind === 'collection'
@@ -67,6 +70,18 @@ export async function followContext(uri) {
     await loadTracks('context', record);
   } catch {
     if (uri === contextUri) setState('context', { ...EMPTY_TRACKS, status: 'error' });
+  }
+}
+
+// After a reconnect: reload lists that failed
+export function retryTracks() {
+  if (state.context.status === 'error') {
+    const uri = contextUri;
+    contextUri = undefined; // let followContext run again for the same context
+    followContext(uri);
+  }
+  if (state.preview.status === 'error' && state.preview.record) {
+    loadTracks('preview', state.preview.record);
   }
 }
 

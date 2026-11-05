@@ -1,7 +1,8 @@
 import { spotifyFetch } from './client.js';
 
-// Account plan: 'premium' | 'free' | 'unknown'. Needs the user-read-private scope —
-// older sessions without it get 'unknown' and are treated like Premium (errors explain the rest).
+// Account plan: 'premium' | 'free' | 'unknown'. Needs the user-read-private scope.
+// Since Spotify's Feb 2026 change, Development-mode apps no longer get `product`, so this is usually
+// 'unknown' — treated like Premium until a "Premium required" reply says otherwise (see app.js).
 export async function fetchPlan() {
   const me = await spotifyFetch('/me');
   if (me?.product === 'premium') return 'premium';

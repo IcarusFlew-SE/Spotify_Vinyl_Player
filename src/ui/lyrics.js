@@ -91,10 +91,14 @@ export function mountLyrics({ onSeek, onFastSync }) {
     if (!lines.length) return;
     const i = activeLine(lines, position(state.playback));
     if (i === active) return;
-    els.forEach((el, j) => {
-      el.classList.toggle('is-past', j < i);
-      el.classList.toggle('is-active', j === i);
-    });
+    // Only lines between the old and new position can change class: O(lines moved), not O(all lines).
+    // After a fresh render (active = -2) every line is set once.
+    const lo = active === -2 ? 0 : Math.max(0, Math.min(active, i));
+    const hi = active === -2 ? els.length - 1 : Math.max(active, i);
+    for (let j = lo; j <= hi && j < els.length; j++) {
+      els[j].classList.toggle('is-past', j < i);
+      els[j].classList.toggle('is-active', j === i);
+    }
     active = i;
     if (!userScrolling()) follow(instant);
   }

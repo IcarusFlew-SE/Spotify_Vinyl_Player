@@ -27,9 +27,8 @@ That's it. Everything else in this guide is detail you can look up when you need
 
 These are being worked on. They come from changes Spotify made for apps in 2026.
 
-- **The *Play here* button doesn't appear.** Spotify no longer tells Studify whether you have Premium, and Studify only shows the button when it knows you do. Until this is fixed, play music through the Spotify app.
-- **Playlists show "0 tracks", and their song lists may not open.** Spotify now only shares the song list of playlists **you made or collaborate on**. You can still **play** any playlist from the shelf. Albums and liked songs work normally.
-- **Free accounts see buttons that don't work.** Studify can't tell Free from Premium at the moment. If you press play and see *"Playback control requires Spotify Premium"*, use the Spotify app; Studify still follows along.
+- **Spotify no longer tells Studify whether you have Free or Premium.** Studify now assumes Premium. A **Free** account sees one message the first time it presses play (*"This account is on Spotify Free…"*). After that, Studify switches to follow mode by itself and remembers it until you disconnect.
+- **Song lists open only for playlists you made or collaborate on.** Spotify no longer shares the songs of playlists you only follow. You can still **play** any playlist from the shelf, and albums and liked songs work normally. A playlist without a song count from Spotify shows no count, rather than a wrong "0 tracks".
 
 ---
 
@@ -358,11 +357,11 @@ Messages appear briefly at the bottom of the screen.
 | Message | What it means | What to do |
 |---|---|---|
 | **Open the Spotify app on any device — no need to play anything — then try again.** | No Spotify app is open, or a phone has put it to sleep | Open the Spotify app (bring it to the front on a phone), then press play in Studify again |
-| **Playback control requires Spotify Premium.** | Your account is Free | Use the controls in the Spotify app; Studify follows along |
+| **This account is on Spotify Free — Studify will follow along…** | Your account is Free. Studify has switched to follow mode for the rest of this session | Play, pause and skip in the Spotify app; Studify follows along |
 | **Spotify won't allow that right now.** | Spotify blocked that action (for example, skipping during an ad). If it appears for **everything**, you're probably not on the access list yet (see the row below) | Try again in a moment, or ask the person who runs Studify to add you |
 | **Couldn't start playing here — try again, or keep using the Spotify app.** | *Play here* couldn't connect | Click **Play here** again, or use the Spotify app |
 | **This browser can't play Spotify here — keep using the Spotify app.** | Your browser doesn't support Spotify's in-browser player | Use Chrome, Edge or Firefox on a computer, or just the Spotify app |
-| **Spotify doesn't share this list's tracks with apps** (in a song list) | Spotify only shares the songs of playlists you made or collaborate on | Play the whole record from the shelf instead |
+| **Spotify only shares the songs of playlists you own or collaborate on…** (in a song list) | You only follow this playlist, so Spotify won't list its songs | Play the whole record from the shelf instead |
 
 **Connecting and logging in**
 
@@ -381,7 +380,8 @@ Messages appear briefly at the bottom of the screen.
 | Message | What it means | What to do |
 |---|---|---|
 | **Spotify is busy — try again in N s.** | Too many requests in a short time | Wait the number of seconds shown |
-| **Can't reach Spotify — check your connection.** | You're offline | Check your internet. Studify catches up when you're back |
+| **Can't reach Spotify — check your connection.** | One request failed | Check your internet. Studify tries again by itself |
+| **You're offline** (on the player card) and **Offline — showing the last song. Reconnecting automatically…** | The connection dropped, or Studify was opened without internet. You stay logged in | Nothing to do. When you're back online, Studify catches up at once, and reloads anything that failed (shelf, song list, lyrics). Lyrics already on screen keep scrolling |
 | **Spotify is having trouble — try again shortly.** | Spotify itself has a problem | Wait a minute |
 | **Something went wrong.** | An unexpected problem | Try again. If it keeps happening, tell the person who runs Studify |
 
@@ -399,9 +399,12 @@ Messages appear briefly at the bottom of the screen.
   - your Spotify **login key**, so you stay connected;
   - which **permissions** you gave;
   - your **focus and break lengths**;
-  - whether **Show lyrics when I play** is on.
+  - whether **Show lyrics when I play** is on;
+  - whether your account turned out to be **Free** (forgotten when you disconnect);
+  - **lyrics** of songs you've played, for 30 days, so they appear instantly next time and work offline (lyrics aren't personal: just the song's words);
+  - your **record shelf** (playlist, album and liked-song names and covers), so it shows at once when you open Studify. It's **deleted when you disconnect**.
 - It never sees your Spotify password.
-- **Disconnecting** (next section) deletes the login key from the browser.
+- **Disconnecting** (next section) deletes the login key and the saved shelf from the browser. To remove saved lyrics as well, clear this site's data in your browser settings.
 
 ## 14. Disconnecting
 

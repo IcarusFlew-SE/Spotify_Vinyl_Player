@@ -11,8 +11,9 @@
   - *Play here* (the browser tab as the player);
   - phone support;
   - starting music from Studify with only the Spotify app open.
+- **Just done (2026-11-03):** the fixes for Spotify's 2026 rule changes, plus reliability and speed work: offline handling, request timeouts, saved lyrics and shelf, smarter polling, and lyrics loaded ahead of time. See the [system design plan](./README.md#system-design--performance-plan).
 - **Next:**
-  - fix the two problems caused by Spotify's 2026 rule changes (*Play here* hidden, playlist song lists);
+  - run the [real-account test checklist](./TEST_CHECKLIST.md);
   - then the **Playback engine** (Phase 2): shuffle, repeat, volume, queue, and choosing the device. See the [research](./RESEARCH_IN_APP_PLAYBACK.md).
 - **Waiting on decisions:**
   - **C:** which study features to build;
@@ -39,7 +40,8 @@ Recommended path: **Web Playback SDK**, **playlist crate**, **vanilla JS**. Item
 | 1.7 Revision 2.1: even layout, timer sheet, progress | ~1 d | 1.6 | ✅ Done (pending review) — [`DESIGN.md` §0.10](./DESIGN.md) |
 | 1.8 Listening view: track list, side panel, synced lyrics | ~4–5 d | 1.7 | ✅ Done (pending review). Play here (SDK) untested with a real Premium account |
 | 1.9 Start music from Studify (an open but idle Spotify app is used directly) | ~0.5 d | 1.8 | ✅ Done (2026-11-02) |
-| 2.0 Fix Spotify's February 2026 changes (plan detection → *Play here*; playlist `/items`) | ~0.5 d | — | **Next** — see [research](./RESEARCH_IN_APP_PLAYBACK.md#spotifys-february-2026-changes-two-things-in-studify-break) |
+| 2.0 Fix Spotify's February 2026 changes (plan detection → *Play here*; playlist `/items`) | ~0.5 d | — | ✅ Done (2026-11-03): waiting for the [real-account checklist](./TEST_CHECKLIST.md) |
+| 2.0b Reliability & performance (timeouts, offline, caches, IndexedDB, adaptive polling, lyrics prefetch, CSP report-only) | ~3 d | 2.0 | ✅ Done (2026-11-03): details and drawbacks in the [system design plan](./README.md#part-4--implementation-revision-3-and-drawbacks) |
 | 2 Playback engine (auto *Play here*, shuffle, repeat, volume, queue, device picker) | ~3 d | 2.0, gate A ✅ | Not started — scope proposed in the [research](./RESEARCH_IN_APP_PLAYBACK.md#proposal-play-on-studify-fits-phase-2-of-the-plan) |
 | 3 Record stack & crate | 2–3 d | 2, gate B | 🟡 Crate done in 1.6 (gate B answered: playlists / albums / liked). Remaining: queue stack, pagination |
 | 4 Study features | 1.5–2 d | 2 (3 for playlists), gate C | Not started |

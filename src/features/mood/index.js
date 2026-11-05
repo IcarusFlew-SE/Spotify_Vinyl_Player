@@ -1,20 +1,27 @@
 import { subscribe, setState } from '../../state.js';
 import { extractPalette } from './palette.js';
 import { buildTheme, spineColors, FALLBACK_THEME } from './theme.js';
+import { LruCache } from '../../lib/lru.js';
 
 const SAMPLE_PX = 32; // 1,024 pixels — < 2 ms on the main thread, no worker needed
 const DEBOUNCE_MS = 400; // rapid skipping shouldn't flash through every cover's colours
 const CACHE_LIMIT = 300;
 
-const palettes = new Map(); // artwork URL -> Promise<palette | null>
+const palettes = new LruCache(CACHE_LIMIT); // artwork URL -> Promise<palette | null>
 
-// Artwork URL → palette (cached). Resolves null if the image can't be read (network, tainted canvas).
+// Artwork URL → palette (cached; the promise is shared, so a cover is read once even when asked twice).
+// Resolves null if the image can't be read; that failure isn't kept, so the cover is tried again later
+// (e.g. it failed while offline).
 export function paletteForArtwork(url) {
-  if (!palettes.has(url)) {
-    if (palettes.size >= CACHE_LIMIT) palettes.delete(palettes.keys().next().value); // drop the oldest
-    palettes.set(url, readPalette(url));
+  let pending = palettes.get(url);
+  if (!pending) {
+    pending = readPalette(url).then((palette) => {
+      if (!palette) palettes.delete(url);
+      return palette;
+    });
+    palettes.set(url, pending);
   }
-  return palettes.get(url);
+  return pending;
 }
 
 async function readPalette(url) {

@@ -144,3 +144,28 @@ describe('getValidToken', () => {
     expect(local.store.get('spotify_refresh_token')).toBe('refresh-1');
   });
 });
+
+describe('session and plan memory', () => {
+  it('reports a session while a refresh token is stored, even if it cannot be refreshed now', () => {
+    expect(auth.hasSession()).toBe(false);
+    local.setItem('spotify_refresh_token', 'r');
+    expect(auth.hasSession()).toBe(true);
+  });
+
+  it('remembers only a real plan, and forgets it on logout', () => {
+    expect(auth.rememberedPlan()).toBe('unknown');
+    auth.rememberPlan('unknown');
+    expect(auth.rememberedPlan()).toBe('unknown');
+    auth.rememberPlan('free');
+    expect(auth.rememberedPlan()).toBe('free');
+    auth.logout();
+    expect(auth.rememberedPlan()).toBe('unknown');
+  });
+
+  it('a network failure during refresh throws (session kept) rather than logging out', async () => {
+    local.setItem('spotify_refresh_token', 'r');
+    fetch.mockRejectedValue(new TypeError('offline'));
+    await expect(auth.getValidToken()).rejects.toThrow();
+    expect(auth.hasSession()).toBe(true);
+  });
+});

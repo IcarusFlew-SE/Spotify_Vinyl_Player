@@ -69,6 +69,7 @@ npm run dev                 # open http://127.0.0.1:5173/  (not "localhost")
 - **Sync:**
   - In remote mode, Studify checks Spotify every 2 s, or every 1 s while lyrics are visible, and fills in the position between checks.
   - In *Play here* mode, the Web Playback SDK sends events instead.
+- **Full architecture, issue register and optimisation plan:** [System design & performance plan](docs/README.md#system-design--performance-plan).
 - **Privacy:** Studify talks only to Spotify and LRCLIB. LRCLIB receives the song name, artist, album and length, nothing about you.
 
 ```
@@ -96,13 +97,14 @@ Details and sources: [Research: playing music on Studify](docs/RESEARCH_IN_APP_P
 
 ## Known issues
 
-Found during the 2.0 research and not fixed yet. Each one comes from Spotify's February 2026 API changes.
+The first two come from Spotify's February 2026 API changes. They're **fixed in code** and waiting for the real-account check. Details and drawbacks: [System design & performance plan](docs/README.md#part-4--implementation-revision-3-and-drawbacks).
 
-| Issue | Effect | Planned fix |
-|---|---|---|
-| Spotify no longer tells apps whether an account is Free or Premium (`product` field removed) | Studify can't detect the plan, so **Play here stays hidden** and Free accounts don't switch to follow mode automatically | Show *Play here* unless the account is known to be Free; learn the plan from Spotify's "Premium required" reply instead |
-| Playlist songs moved from `/playlists/{id}/tracks` to `/playlists/{id}/items`, and only for playlists you **own or collaborate on** | Playlist track counts show 0. **Tracks ›** and the Tracks tab can fail for playlists | Use the new endpoint and field names. For playlists you only follow, explain that they can still be played from the shelf |
-| Not yet tried with real accounts | *Play here* on Premium, LRCLIB matching in a real browser, a real Android login | Test before calling it 2.0 stable |
+| Issue | Status |
+|---|---|
+| Spotify no longer tells apps whether an account is Free or Premium | **Fixed:** *Play here* shows unless the account is known to be Free. A Free account is recognised from Spotify's "Premium required" reply: it sees one message, then gets follow mode for the session. |
+| Playlist songs moved to `/playlists/{id}/items`, and only for playlists you **own or collaborate on** | **Fixed:** Studify uses the new path and falls back to the old one. Followed playlists explain that they can still be played from the shelf. |
+| Not yet tried with real accounts | **Open:** run the [real-account test checklist](docs/TEST_CHECKLIST.md) before calling it 2.0 stable |
+| The security header (CSP) only reports for now | **Open:** switch it to enforcing after part E of the checklist |
 
 ## Version history
 
@@ -120,7 +122,8 @@ Full details: [docs/CHANGELOG.md](docs/CHANGELOG.md).
 *Space for new ideas, enhancements and features. Add a line, and move it into [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) once it's agreed.*
 
 ### Next up (proposed, see the research doc)
-- [ ] Fix the two February 2026 API issues above
+- [x] Fix the two February 2026 API issues above (waiting for the real-account check)
+- [x] Offline handling, request timeouts, saved lyrics and shelf, smarter polling, lyrics prefetch
 - [ ] **Play directly on Studify:** start *Play here* automatically when nothing is playing, so you don't have to open Spotify first (Premium, computer)
 - [ ] **Shuffle** and **repeat** buttons
 - [ ] **Volume** slider

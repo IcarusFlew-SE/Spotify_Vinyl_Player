@@ -56,6 +56,7 @@ export const state = {
     autoLyrics: true, // switch to lyrics after the user plays something (remembered per browser)
   },
   ui: { toast: null }, // { message, tone, id }
+  net: { online: true }, // owned by net.js — browser events corrected by real request results
 };
 
 export const isConnected = (s = state) => s.auth.status === 'connected';

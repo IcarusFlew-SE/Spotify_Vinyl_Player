@@ -20,18 +20,24 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout,
   title.classList.add('skeleton-text');
   artist.classList.add('skeleton-text');
   let announcedTrack = null;
+  let announcedOffline = null;
 
   function render(_, s) {
     const auth = s.auth.status;
     const connected = auth === 'connected';
     const p = s.playback;
-    const loading = auth === 'unknown' || (connected && p.status === 'loading');
+    const offline = connected && !s.net.online;
+    const loading = auth === 'unknown' || (connected && p.status === 'loading' && !offline);
 
     // Copy for each state; skeleton bars replace the text while loading (DESIGN §8)
     meta.setAttribute('aria-busy', String(loading));
     if (loading) {
       title.textContent = 'Loading track';
       artist.textContent = 'Loading artist';
+    } else if (offline && p.status !== 'ready') {
+      // Started offline: say so instead of an endless loading shimmer
+      title.textContent = 'You’re offline';
+      artist.textContent = 'Studify will reconnect by itself when the connection is back.';
     } else if (p.status === 'ready') {
       title.textContent = p.trackTitle;
       artist.textContent = [p.trackArtist, p.album].filter(Boolean).join(' · ');
@@ -55,12 +61,15 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout,
     hint.textContent =
       auth === 'disconnected'
         ? 'Connect Spotify to use the controls.'
-        : connected && !control
-          ? 'Free account: play, pause and skip in the Spotify app — Studify follows along.'
-          : '';
+        : offline
+          ? 'Offline — showing the last song. Reconnecting automatically…'
+          : connected && !control
+            ? 'Free account: play, pause and skip in the Spotify app — Studify follows along.'
+            : '';
 
-    // "Play here" (Premium, computer browsers): this tab becomes the Spotify device
-    btnDevice.hidden = !(control && s.auth.plan === 'premium' && canPlayHere());
+    // "Play here" (Premium, computer browsers): this tab becomes the Spotify device.
+    // Shown unless the account is known to be Free — Spotify no longer reports the plan up front
+    btnDevice.hidden = !(control && canPlayHere());
     const here = p.device === 'browser';
     btnDevice.setAttribute('aria-pressed', String(here));
     deviceText.textContent = here ? 'Playing in this browser' : 'Play here';
@@ -70,6 +79,12 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout,
     btnLogin.hidden = auth !== 'disconnected';
     if (!connected) accountMenu.open = false;
 
+    if (offline !== announcedOffline) {
+      if (offline || announcedOffline !== null)
+        announce(offline ? 'Offline. Reconnecting automatically.' : 'Back online.');
+      announcedOffline = offline;
+    }
+
     if (p.status === 'ready' && p.trackTitle !== announcedTrack) {
       announcedTrack = p.trackTitle;
       announce(`Now playing: ${p.trackTitle} by ${p.trackArtist}`);
@@ -78,6 +93,7 @@ export function mountControls({ onTogglePlay, onNext, onPrev, onLogin, onLogout,
 
   subscribe('auth', render);
   subscribe('playback', render);
+  subscribe('net', render);
 
   btnPlay.addEventListener('click', onTogglePlay);
   btnNext.addEventListener('click', onNext);

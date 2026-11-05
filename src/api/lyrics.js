@@ -1,7 +1,10 @@
 // Lyrics from LRCLIB (lrclib.net) — free, no key, CORS-enabled. The Spotify Web API has no lyrics.
 // Returns { synced, plain, instrumental } or null when no confident match exists.
+import { timeoutSignal } from '../lib/signal.js';
+
 const BASE = 'https://lrclib.net/api';
 const DURATION_TOLERANCE_S = 2; // same song, different upload, can differ by a second or two
+const TIMEOUT_MS = 10_000; // per request; a timeout reports LYRICS_UNAVAILABLE (retried by features/lyrics)
 
 const toLyrics = (d) => ({
   synced: d.syncedLyrics || null,
@@ -19,7 +22,7 @@ export const cleanTitle = (title) =>
 async function getJson(url) {
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { signal: timeoutSignal(TIMEOUT_MS) });
   } catch {
     throw Object.assign(new Error('LYRICS_UNAVAILABLE'), { code: 'LYRICS_UNAVAILABLE' });
   }

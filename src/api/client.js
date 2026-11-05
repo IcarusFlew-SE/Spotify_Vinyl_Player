@@ -1,7 +1,9 @@
 import { getValidToken } from '../auth/auth.js';
+import { timeoutSignal } from '../lib/signal.js';
 
 const BASE = 'https://api.spotify.com/v1';
 const DEFAULT_RETRY_AFTER_S = 5; // used when Retry-After is missing or unreadable
+const TIMEOUT_MS = 8000; // a stuck request counts as a network error instead of freezing its caller
 
 let blockedUntil = 0; // rate-limit cooldown, shared by every caller
 
@@ -56,8 +58,10 @@ async function send(url, method, body, forceRefresh) {
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal: timeoutSignal(TIMEOUT_MS),
     });
   } catch {
+    // offline, DNS, CORS or timeout — all transient from the caller's point of view
     throw new SpotifyError('NETWORK_ERROR');
   }
 }

@@ -3,7 +3,8 @@ import { formatClock } from './progress.js';
 const SKELETON_ROWS = 8;
 const MESSAGES = {
   error: 'Couldn’t load these tracks.',
-  unsupported: 'Spotify doesn’t share this list’s tracks with apps — play it from the record instead.',
+  unsupported:
+    'Spotify only shares the songs of playlists you own or collaborate on — you can still play this one from its record.',
   empty: 'No tracks here.',
 };
 
